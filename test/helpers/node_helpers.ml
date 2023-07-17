@@ -311,17 +311,25 @@ let select_first_exn t ~selector =
           ~from_node:(to_string_html t : string)]
 ;;
 
+class type ['a] prop =
+  object
+    method key : Js.js_string Js.t Js.prop
+    method value : 'a Js.prop
+  end
+
+let with_prop f p = f (p##.key, p##.value)
+
 let rec unsafe_of_js_exn =
   let make_text_node (text : Js.js_string Js.t) = Text (Js.to_string text) in
   let make_element_node
     (tag_name : Js.js_string Js.t)
     (children : t Js.js_array Js.t)
-    (handlers : (Js.js_string Js.t * Js.Unsafe.any) Js.js_array Js.t)
-    (attributes : (Js.js_string Js.t * Js.js_string Js.t) Js.js_array Js.t)
-    (string_properties : (Js.js_string Js.t * Js.js_string Js.t) Js.js_array Js.t)
-    (bool_properties : (Js.js_string Js.t * bool Js.t) Js.js_array Js.t)
-    (styles : (Js.js_string Js.t * Js.js_string Js.t) Js.js_array Js.t)
-    (hooks : (Js.js_string Js.t * Vdom.Attr.Hooks.For_testing.Extra.t) Js.js_array Js.t)
+    (handlers : Js.Unsafe.any prop Js.t Js.js_array Js.t)
+    (attributes : Js.js_string Js.t prop Js.t Js.js_array Js.t)
+    (string_properties : Js.js_string Js.t prop Js.t Js.js_array Js.t)
+    (bool_properties : bool Js.t prop Js.t Js.js_array Js.t)
+    (styles : Js.js_string Js.t prop Js.t Js.js_array Js.t)
+    (hooks : Vdom.Attr.Hooks.For_testing.Extra.t prop Js.t Js.js_array Js.t)
     (key : Js.js_string Js.t Js.Opt.t)
     =
     let tag_name = tag_name |> Js.to_string in
@@ -330,50 +338,56 @@ let rec unsafe_of_js_exn =
       handlers
       |> Js.to_array
       |> Array.to_list
-      |> List.map ~f:(fun (s, h) ->
-           let name = Js.to_string s in
-           name, Handler.of_any_exn h ~name)
+      |> List.map
+           ~f:
+             (with_prop
+              @@ fun (s, h) ->
+              let name = Js.to_string s in
+              name, Handler.of_any_exn h ~name)
     in
     let attributes =
       attributes
       |> Js.to_array
       |> Array.to_list
-      |> List.map ~f:(fun (k, v) ->
-           let k, v = Js.to_string k, Js.to_string v in
-           let v =
-             if [%equal: string] k "class"
-             then
-               v
-               |> String.split ~on:' '
-               |> List.dedup_and_sort ~compare:[%compare: string]
-               |> String.concat ~sep:" "
-             else v
-           in
-           k, v)
+      |> List.map
+           ~f:
+             (with_prop
+              @@ fun (k, v) ->
+              let k, v = Js.to_string k, Js.to_string v in
+              let v =
+                if [%equal: string] k "class"
+                then
+                  v
+                  |> String.split ~on:' '
+                  |> List.dedup_and_sort ~compare:[%compare: string]
+                  |> String.concat ~sep:" "
+                else v
+              in
+              k, v)
     in
     let hooks =
       hooks
       |> Js.to_array
       |> Array.to_list
-      |> List.map ~f:(fun (k, v) -> Js.to_string k, v)
+      |> List.map ~f:(with_prop @@ fun (k, v) -> Js.to_string k, v)
     in
     let string_properties =
       string_properties
       |> Js.to_array
       |> Array.to_list
-      |> List.map ~f:(fun (k, v) -> Js.to_string k, Js.to_string v)
+      |> List.map ~f:(with_prop @@ fun (k, v) -> Js.to_string k, Js.to_string v)
     in
     let bool_properties =
       bool_properties
       |> Js.to_array
       |> Array.to_list
-      |> List.map ~f:(fun (k, v) -> Js.to_string k, Js.to_bool v)
+      |> List.map ~f:(with_prop @@ fun (k, v) -> Js.to_string k, Js.to_bool v)
     in
     let styles =
       styles
       |> Js.to_array
       |> Array.to_list
-      |> List.map ~f:(fun (k, v) -> Js.to_string k, Js.to_string v)
+      |> List.map ~f:(with_prop @@ fun (k, v) -> Js.to_string k, Js.to_string v)
     in
     let key = key |> Js.Opt.to_option |> Option.map ~f:Js.to_string in
     Element
@@ -418,7 +432,7 @@ let rec unsafe_of_js_exn =
            case 'VirtualNode':
                var attributes = node.properties.attributes || {};
                var attr_list = Object.keys(attributes).map(function(key) {
-                   return [0, key, attributes[key].toString()];
+                   return {key:key, value:attributes[key].toString()};
                });
                var children = node.children.map(function(node) {
                    return convert(node, make_text_node, make_element_node, make_widget_node, raise_unknown_node_type);
@@ -431,8 +445,7 @@ let rec unsafe_of_js_exn =
                        return key.startsWith("on") && typeof node.properties[key] === 'function';
                    })
                    .map(function(key) {
-                       // [0, ...] is how to generate an OCaml tuple from the JavaScript side.
-                       return [0, key, node.properties[key]];
+                       return {key:key, value:node.properties[key]};
                    });
                var string_properties =
                    Object.keys(node.properties)
@@ -440,7 +453,7 @@ let rec unsafe_of_js_exn =
                        return typeof node.properties[key] === 'string';
                    })
                    .map(function(key) {
-                       return [0, key, node.properties[key]]
+                       return {key, value:node.properties[key]}
                    });
                var bool_properties =
                    Object.keys(node.properties)
@@ -448,7 +461,7 @@ let rec unsafe_of_js_exn =
                      return typeof node.properties[key] === 'boolean';
                    })
                    .map(function(key) {
-                       return [0, key, node.properties[key]]
+                       return {key, value:node.properties[key]}
                    });
                var styles =
                    Object.keys(node.properties.style ? node.properties.style : {})
@@ -456,7 +469,7 @@ let rec unsafe_of_js_exn =
                        return typeof node.properties.style[key] === 'string';
                    })
                    .map(function(key) {
-                       return [0, key, node.properties.style[key]]
+                       return {key, value:node.properties.style[key]}
                    });
                var hooks =
                    Object.keys(node.properties)
@@ -465,7 +478,7 @@ let rec unsafe_of_js_exn =
                            typeof node.properties[key]['extra'] === 'object';
                    })
                    .map(function(key) {
-                       return [0, key, node.properties[key]['extra']]
+                       return {key, value:node.properties[key]['extra']}
                    });
                var soft_set_hooks =
                    Object.keys(node.properties)
@@ -473,7 +486,7 @@ let rec unsafe_of_js_exn =
                      return node.properties[key] instanceof joo_global_object.SoftSetHook;
                    })
                    .map(function(key) {
-                     return [0, key, "" + node.properties[key].value];
+                     return {key, value:"" + node.properties[key].value};
                    });
                return make_element_node(
                    node.tagName,
@@ -532,7 +545,7 @@ let trigger ?extra_fields node ~event_name =
 ;;
 
 let get_hook_value : type a. t -> type_id:a Type_equal.Id.t -> name:string -> a =
-  fun t ~type_id ~name ->
+ fun t ~type_id ~name ->
   match t with
   | Element { hooks; _ } ->
     (match List.Assoc.find ~equal:String.equal hooks name with
@@ -861,6 +874,6 @@ module User_actions = struct
         (build_event_object
            ~extra_event_fields
            ~include_modifier_keys:false
-           [ "deltaY", Js.Unsafe.inject delta_y ])
+           [ "deltaY", Js.Unsafe.inject (Js.float delta_y) ])
   ;;
 end

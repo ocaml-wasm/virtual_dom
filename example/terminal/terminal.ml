@@ -68,7 +68,7 @@ let () =
               let patch = Node.Patch.create ~previous:!vdom ~current in
               vdom := current;
               Node.Patch.apply patch elt |> (ignore : Dom_html.element Js.t -> unit)))
-           30.
+           (Js.float 30.)
          |> (ignore : Dom_html.interval_id -> unit);
          Js._false)
 ;;
