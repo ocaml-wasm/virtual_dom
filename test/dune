@@ -1,3 +1,4 @@
 (library (name virtual_dom_test) (preprocess (pps js_of_ocaml-ppx ppx_jane))
+ (inline_tests (modes js))
  (libraries core js_of_ocaml expect_test_helpers_core virtual_dom
   virtual_dom_test_helpers patdiff.expect_test_patdiff))
