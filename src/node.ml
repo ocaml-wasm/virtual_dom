@@ -2,7 +2,7 @@ open Base
 open Js_of_ocaml
 
 type element =
-  { tag : string
+  { tag : Js.js_string Js.t
   ; key : string option
   ; attrs : Attr.t
   ; raw_attrs : Raw.Attrs.t Lazy.t
@@ -31,7 +31,7 @@ end
 module Element = struct
   type t = element
 
-  let tag t = t.tag
+  let tag t = Js.to_string t.tag
   let attrs t = t.attrs
   let key t = t.key
   let with_key t key = { t with key = Some key }
@@ -83,7 +83,7 @@ let rec t_to_js = function
     let attrs = Attr.to_raw Attr.empty in
     let key : string option = None in
     let children_raw = to_raw_children children ~t_to_js in
-    Raw.Node.node "div" attrs children_raw key
+    Raw.Node.node (Js.string "div") attrs children_raw key
   | Text s -> Raw.Node.text s
   | Element { tag; key; attrs = _; raw_attrs = (lazy raw_attrs); children; kind = `Vnode }
     -> Raw.Node.node tag raw_attrs children key
@@ -102,7 +102,9 @@ let element kind ~tag ~key attrs children =
   { kind; tag; key; attrs; raw_attrs; children = children_raw }
 ;;
 
-let create tag ?key ?(attrs = []) children =
+let create tag =
+  let tag = Js.string tag in
+  fun ?key ?(attrs = []) children ->
   Element (element `Vnode ~tag ~key (Attr.many attrs) children)
 ;;
 
@@ -197,9 +199,12 @@ let widget ?vdom_for_testing ?destroy ?update ~id ~init () =
   Widget (Widget.create ~vdom_for_testing ?destroy ?update ~id ~init ())
 ;;
 
-let create_childless tag ?key ?attrs () = create tag ?key ?attrs []
+let create_childless tag =
+  let create = create tag in
+  fun ?key ?attrs () -> create ?key ?attrs []
 
 let create_svg tag ?key ?(attrs = []) children =
+  let tag = Js.string tag in
   Element (element `Svg ~tag ~key (Attr.many attrs) children)
 ;;
 
@@ -273,7 +278,7 @@ end
 
 let inner_html_svg =
   Inner_html.widget ~name:"inner-html-svg-node" (fun tag ~attrs ->
-    create_svg_monoid tag ?key:None ~attrs)
+    create_svg_monoid (Js.string tag) ?key:None ~attrs)
   |> Staged.unstage
 ;;
 
@@ -357,10 +362,12 @@ end
 
 module Expert = struct
   let create ?key tag attrs children =
+    let tag = Js.string tag in
     Element (element_expert `Vnode ?key ~tag attrs children)
   ;;
 
   let create_svg ?key tag attrs children =
+    let tag = Js.string tag in
     Element (element_expert `Svg ?key ~tag attrs children)
   ;;
 end

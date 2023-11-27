@@ -5,9 +5,11 @@ module Js_object = struct
   type t = Js.Unsafe.any
 
   let empty_obj () = Js.Unsafe.obj [||]
-  let set_prop_ascii t name value = Js.Unsafe.set t (Js.string name) value
-  let get_prop_ascii t name = Js.Unsafe.get t (Js.string name)
-  let has_property t name = Js.Optdef.test (Js.Unsafe.get t (Js.string name))
+  let set_prop_ascii = Js.Unsafe.set
+(*
+  let get_prop_ascii = Js.Unsafe.get
+*)
+  let has_property t name = Js.Optdef.test (Js.Unsafe.get t name)
   let is_undefined a = not (Js.Optdef.test a)
 end
 
@@ -16,23 +18,30 @@ module Attrs = struct
 
   let create () : t = Js_object.empty_obj ()
 
-  let set_property : t -> string -> t -> unit =
+  let set_property : t -> Js.js_string Js.t -> t -> unit =
     fun t name value -> Js_object.set_prop_ascii t name value
   ;;
 
-  let has_property : t -> string -> bool = Js_object.has_property
+  let has_property : t -> Js.js_string Js.t -> bool = Js_object.has_property
 
-  let has_attribute t name =
-    Js_object.has_property t "attributes"
-    && Js_object.has_property (Js_object.get_prop_ascii t "attributes") name
+  let has_attribute t (name : Js.js_string Js.t) =
+    let attr = Js.Unsafe.get t (Js.string "attributes") in
+    Js.Optdef.test attr && Js_object.has_property attr name
   ;;
 
-  let set_attribute : t -> string -> t -> unit =
-    fun t name value ->
-    if Js_object.is_undefined (Js_object.get_prop_ascii t "attributes")
-    then Js_object.set_prop_ascii t "attributes" (Js_object.empty_obj ());
-    Js_object.set_prop_ascii (Js_object.get_prop_ascii t "attributes") name value
-  ;;
+  let set_attribute : t -> Js.js_string Js.t -> t -> unit =
+   fun t name value ->
+    let attr = Js.Unsafe.get t (Js.string "attributes") in
+    let attr =
+      if Js_object.is_undefined attr
+      then (
+        let attr = Js_object.empty_obj () in
+        Js.Unsafe.set t (Js.string "attributes") attr;
+        attr)
+      else attr
+    in
+    Js_object.set_prop_ascii attr name value
+ ;;
 end
 
 type virtual_dom_node
@@ -83,11 +92,10 @@ module Node = struct
   ;;
 
   let node
-    :  string -> Attrs.t -> virtual_dom_node Js.t Js.js_array Js.t -> string option
-    -> virtual_dom_node Js.t
+    :  Js.js_string Js.t -> Attrs.t -> virtual_dom_node Js.t Js.js_array Js.t
+    -> string option -> virtual_dom_node Js.t
     =
-    fun tag attrs children key ->
-    let tag = Js.string tag in
+   fun tag attrs children key ->
     let key =
       match key with
       | None -> Js.Optdef.empty
@@ -95,14 +103,13 @@ module Node = struct
     in
     let vnode = virtual_dom##._VNode in
     new%js vnode tag attrs children key
-  ;;
+ ;;
 
   let svg
-    :  string -> Attrs.t -> virtual_dom_node Js.t Js.js_array Js.t -> string option
-    -> virtual_dom_node Js.t
+    :  Js.js_string Js.t -> Attrs.t -> virtual_dom_node Js.t Js.js_array Js.t
+    -> string option -> virtual_dom_node Js.t
     =
-    fun tag attrs children key ->
-    let tag = Js.string tag in
+   fun tag attrs children key ->
     let key =
       match key with
       | None -> Js.Optdef.empty
@@ -110,7 +117,7 @@ module Node = struct
     in
     let vsvg = virtual_dom##.svg in
     new%js vsvg tag attrs children key
-  ;;
+ ;;
 
   let text s =
     let vtext = virtual_dom##._VText in

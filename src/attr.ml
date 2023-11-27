@@ -248,7 +248,8 @@ let to_raw attr =
     List.fold ~init:acc ~f:(fun acc attr ->
       match attr with
       | Property { suppress_merge_warnings; name; value } ->
-        if Raw.Attrs.has_property attrs_obj name && not suppress_merge_warnings
+        let js_name = Js.string name in
+        if Raw.Attrs.has_property attrs_obj js_name && not suppress_merge_warnings
         then
           Unmerged_warning_mode.warn_s
             [%message "WARNING: not combining properties" (name : string)];
@@ -256,15 +257,16 @@ let to_raw attr =
          | "value" ->
            let softSetHook x : Js.Unsafe.any = Js.Unsafe.global ## SoftSetHook x in
            let value = softSetHook value in
-           Vdom_raw.Attrs.set_property attrs_obj "value" value
-         | name -> Raw.Attrs.set_property attrs_obj name value);
+           Vdom_raw.Attrs.set_property attrs_obj (Js.string "value") value
+         | _ -> Raw.Attrs.set_property attrs_obj js_name value);
         acc
       | Attribute { suppress_merge_warnings; name; value } ->
-        if Raw.Attrs.has_attribute attrs_obj name && not suppress_merge_warnings
+        let js_name = Js.string name in
+        if Raw.Attrs.has_attribute attrs_obj js_name && not suppress_merge_warnings
         then
           Unmerged_warning_mode.warn_s
             [%message "WARNING: not combining attributes" (name : string)];
-        Raw.Attrs.set_attribute attrs_obj name value;
+        Raw.Attrs.set_attribute attrs_obj js_name value;
         acc
       | Style new_styles -> { acc with styles = combine_styles acc.styles new_styles }
       | Class new_classes ->
@@ -334,21 +336,21 @@ let to_raw attr =
       attrs
   in
   Map.iteri merge.hooks ~f:(fun ~key:name ~data:hook ->
-    Raw.Attrs.set_property attrs_obj name (Hooks.pack hook));
+    Raw.Attrs.set_property attrs_obj (Js.string name) (Hooks.pack hook));
   Map.iteri merge.handlers ~f:(fun ~key:name ~data:(Event_handler.T { handler; _ }) ->
     let f e =
       Effect.Expert.handle e (handler e);
       Js._true
     in
-    Raw.Attrs.set_property attrs_obj ("on" ^ name) (Js.Unsafe.inject (Dom.handler f)));
+    Raw.Attrs.set_property attrs_obj (Js.string ("on" ^ name)) (Js.Unsafe.inject (Dom.handler f)));
   let () =
     if not (Css_gen.is_empty merge.styles)
     then (
       let props = Css_gen.to_string_list merge.styles in
       let obj = Raw.Attrs.create () in
       List.iter props ~f:(fun (k, v) ->
-        Raw.Attrs.set_property obj k (Js.Unsafe.inject (Js.string v)));
-      Raw.Attrs.set_property attrs_obj "style" (obj :> Js.Unsafe.any))
+        Raw.Attrs.set_property obj (Js.string k) (Js.Unsafe.inject (Js.string v)));
+      Raw.Attrs.set_property attrs_obj (Js.string "style") (obj :> Js.Unsafe.any))
   in
   let () =
     if List.is_empty merge.classes
@@ -356,7 +358,7 @@ let to_raw attr =
     else
       Raw.Attrs.set_attribute
         attrs_obj
-        "class"
+        (Js.string "class")
         (Js.Unsafe.inject (Js.string (String.concat merge.classes ~sep:" ")))
   in
   attrs_obj
