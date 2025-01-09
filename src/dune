@@ -3,6 +3,9 @@
  (public_name virtual_dom)
  (preprocess
   (pps js_of_ocaml-ppx ppx_jane))
+ (wasm_of_ocaml
+  (javascript_files ../lib/virtualdom.compiled.pretty.js ./thunk.js
+    ./hooks.js))
  (js_of_ocaml
   (javascript_files ../lib/virtualdom.compiled.pretty.js ./thunk.js
     ./hooks.js))
