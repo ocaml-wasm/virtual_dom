@@ -2,6 +2,7 @@
  (name virtual_dom_test)
  (preprocess
   (pps js_of_ocaml-ppx ppx_jane ppx_html))
+ (inline_tests (flags -drop-tag no-js -drop-tag 64-bits-only -drop-tag no-wasm) (modes js wasm))
  (libraries core js_of_ocaml expect_test_helpers_core virtual_dom
    virtual_dom_test_helpers css_gen
    expect_test_helpers_core.expect_test_helpers_base
