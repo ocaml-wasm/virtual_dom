@@ -137,8 +137,8 @@ let both_parallel a b =
         callback (a, b)
       | _ -> ()
     in
-    let dispatch effect ref =
-      Expert.eval effect ~f:(fun x ->
+    let dispatch eff ref =
+      Expert.eval eff ~f:(fun x ->
         ref := Some x;
         maybe_finalize ())
     in

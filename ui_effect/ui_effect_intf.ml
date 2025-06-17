@@ -117,12 +117,12 @@ module type Effect = sig
 
   module Private : sig
     module Callback : sig
-      type 'a effect := 'a t
+      type 'a eff := 'a t
       type ('a, 'b) t
 
-      val make : request:'a -> on_response:('b -> unit effect) -> ('a, 'b) t
+      val make : request:'a -> on_response:('b -> unit eff) -> ('a, 'b) t
       val request : ('a, 'b) t -> 'a
-      val respond_to : ('a, 'b) t -> 'b -> unit effect
+      val respond_to : ('a, 'b) t -> 'b -> unit eff
     end
 
     val make : request:'a -> evaluator:(('a, 'b) Callback.t -> unit) -> 'b t
