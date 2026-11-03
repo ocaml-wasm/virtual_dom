@@ -1,5 +1,4 @@
-"Virtual_dom: a virtual DOM diffing library"
-============================================
+# Virtual_dom: a virtual DOM diffing library
 
 This library is an OCaml wrapper of Matt Esch's [virtual-dom library](https://github.com/Matt-Esch/virtual-dom).
 It provides a simple, immutable representation of a desired state of

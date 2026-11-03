@@ -4,10 +4,15 @@ open! Js_of_ocaml
 module type S = Hooks_intf.S
 module type Input = Hooks_intf.Input
 
-let cancel_animation_frame id = Dom_html.window##cancelAnimationFrame id
+let cancel_animation_frame id =
+  let window = Browser_expert.Global.window_exn () in
+  window##cancelAnimationFrame ~handle:id
+;;
 
 let request_animation_frame f =
-  Dom_html.window##requestAnimationFrame (Js.wrap_callback f)
+  let window = Browser_expert.Global.window_exn () in
+  let callback ~highResTime = f highResTime in
+  window##requestAnimationFrame ~callback:(Js.wrap_meth_callback (fun () -> callback))
 ;;
 
 module Extra = struct
@@ -26,13 +31,13 @@ type t =
       { input : 'input
       ; input_id : 'input Type_equal.Id.t
       ; combine_inputs : 'input -> 'input -> 'input
-      ; init : 'input -> Dom_html.element Js.t -> 'input * 'extra * 'state
+      ; init : 'input -> Browser_types.html_element Js.t -> 'input * 'extra * 'state
       ; update :
           'input
           -> 'input * 'extra * 'state
-          -> Dom_html.element Js.t
+          -> Browser_types.html_element Js.t
           -> 'input * 'extra * 'state
-      ; destroy : 'input * 'extra * 'state -> Dom_html.element Js.t -> unit
+      ; destroy : 'input * 'extra * 'state -> Browser_types.html_element Js.t -> unit
       ; id : ('input * 'extra * 'state) Core.Type_equal.Id.t
       }
       -> t
@@ -44,6 +49,19 @@ let make_hook ~combine_inputs ~init ~extra:(input, input_id) ~update ~destroy ~i
 ;;
 
 let unsafe_create = make_hook
+
+let unsafe_create_js_of_ocaml ~combine_inputs ~init ~extra ~update ~destroy ~id =
+  let init input element =
+    init input (Browser_extra.Coercion.to_dom_html_element element)
+  in
+  let update input new_input element =
+    update input new_input (Browser_extra.Coercion.to_dom_html_element element)
+  in
+  let destroy input element =
+    destroy input (Browser_extra.Coercion.to_dom_html_element element)
+  in
+  make_hook ~combine_inputs ~extra ~id ~init ~update ~destroy
+;;
 
 let pack (T { init; input; input_id; update; destroy; id; _ }) =
   let wrap a = a |> Js.wrap_callback |> Js.Unsafe.inject in
@@ -68,7 +86,7 @@ let combine (T left) (T right) =
   | Some T -> T { right with input = right.combine_inputs left.input right.input }
 ;;
 
-module Make (S : S) = struct
+module Make (S : S with type html_element := Browser_types.html_element) = struct
   let input_and_state_id =
     Type_equal.Id.create ~name:"" (fun (input, _animation_id, state) ->
       [%sexp_of: S.Input.t * opaque] (input, state))
@@ -122,7 +140,7 @@ module Make (S : S) = struct
     S.destroy old_input state element
   ;;
 
-  let create input =
+  let create (input : S.Input.t) =
     make_hook
       ~extra:(input, input_id)
       ~combine_inputs:S.Input.combine
@@ -135,6 +153,46 @@ module Make (S : S) = struct
   module For_testing = struct
     let type_id = input_id
   end
+end
+
+module Make_js_of_ocaml (S : S with type html_element := Dom_html.element) = struct
+  module S_js_of_ocaml = struct
+    module State = S.State
+    module Input = S.Input
+
+    let init input element =
+      S.init input (Browser_extra.Coercion.to_dom_html_element element)
+    ;;
+
+    let on_mount =
+      match S.on_mount with
+      | `Do_nothing -> `Do_nothing
+      | `Schedule_animation_frame f ->
+        let f input state (element : Browser_types.html_element Js.t) =
+          f input state (Browser_extra.Coercion.to_dom_html_element element)
+        in
+        `Schedule_animation_frame f
+      | `Schedule_immediately_after_this_dom_patch_completes f ->
+        let f input state (element : Browser_types.html_element Js.t) =
+          f input state (Browser_extra.Coercion.to_dom_html_element element)
+        in
+        `Schedule_immediately_after_this_dom_patch_completes f
+    ;;
+
+    let update ~old_input ~new_input state element =
+      S.update
+        ~old_input
+        ~new_input
+        state
+        (Browser_extra.Coercion.to_dom_html_element element)
+    ;;
+
+    let destroy input state element =
+      S.destroy input state (Browser_extra.Coercion.to_dom_html_element element)
+    ;;
+  end
+
+  include Make (S_js_of_ocaml)
 end
 
 module For_testing = struct

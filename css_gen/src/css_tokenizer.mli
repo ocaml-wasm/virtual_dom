@@ -1,3 +1,5 @@
+@@ portable
+
 (** A css3 tokenizer.
 
     See section 4.3 on this page: https://www.w3.org/TR/css-syntax-3/
@@ -13,7 +15,7 @@
     everything needed to parse complete css style sheets (e.g. cdo, cdc). *)
 open! Core
 
-type t
+type t : mutable_data
 
 val create : string -> t
 

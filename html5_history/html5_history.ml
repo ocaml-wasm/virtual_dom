@@ -195,16 +195,16 @@ end
 module Opinionated = struct
   module Html5_history = T
 
-  module type Uri_routing = sig
-    type t [@@deriving equal, sexp_of]
+  module type%template [@mode m = (local, global)] Uri_routing = sig
+    type t [@@deriving equal [@mode.explicit m]]
 
     val parse : Uri.t -> (t, [ `Not_found ]) Result.t
     val to_path_and_query : t -> Uri.t
   end
 
-  module type History_state = sig
+  module type%template [@mode m = (local, global)] History_state = sig
     type uri_routing
-    type t [@@deriving bin_io, equal, sexp_of]
+    type t [@@deriving bin_io, (equal [@mode.explicit m]), sexp_of]
 
     val to_uri_routing : t -> uri_routing
     val of_uri_routing : uri_routing -> t

@@ -294,6 +294,7 @@ let to_string_html
   ?censor_hash
   ?path_censoring_message
   ?hash_censoring_message
+  ?(max_width = 100)
   t
   =
   let filter_printed_attributes =
@@ -306,8 +307,9 @@ let to_string_html
   in
   (* Keep around the buffer so that it is not re-allocated for every element *)
   let single_line_buffer = Buffer.create 200 in
+  let child_collapse_threshold = max_width * 4 / 5 in
   let rec recurse buffer ~depth =
-    let indent = String.init (depth * 2) ~f:(Fn.const ' ') in
+    let indent = String.make (depth * 2) ' ' in
     function
     | Text s -> bprintf buffer "%s%s" indent s
     | Element element ->
@@ -317,7 +319,7 @@ let to_string_html
         bprint_element_single_line ~filter_printed_attributes single_line_buffer element
       in
       let close =
-        if Buffer.length single_line_buffer < 100 - String.length indent
+        if Buffer.length single_line_buffer < max_width - String.length indent
         then (
           Buffer.add_buffer buffer single_line_buffer;
           single_line_close)
@@ -331,7 +333,7 @@ let to_string_html
              match child with
              | Text s -> acc + String.length s
              | _ -> acc)
-           < 80 - String.length indent
+           < child_collapse_threshold - String.length indent
       in
       let depth = if children_should_collapse then 0 else depth + 1 in
       List.iter element.children ~f:(fun child ->
@@ -413,11 +415,11 @@ let rec unsafe_of_js_exn =
               @@ fun (k, v) ->
               let k, v = Js.to_string k, Js.to_string v in
               let v =
-                if [%equal: string] k "class"
+                if ([%equal: string] [@mode local]) k "class"
                 then
                   v
                   |> String.split ~on:' '
-                  |> List.dedup_and_sort ~compare:[%compare: string]
+                  |> List.dedup_and_sort ~compare:([%compare: string] [@mode local])
                   |> String.concat ~sep:" "
                 else v
               in
@@ -989,7 +991,7 @@ module User_actions = struct
     in
     trigger_hook
       element
-      ~type_id:Vdom.Attr.Global_listeners.For_testing.keydown_type_id
+      ~type_id:Vdom.Attr.Global_listeners.For_testing.keydown_type_id_js_of_ocaml
       ~name:"global-keydown-listener"
       ~arg:event
       ~f:(fun input event ->
@@ -1109,7 +1111,7 @@ module Linter = struct
     type t =
       | Only_report_app_crashing_errors
       | Report_all_errors
-    [@@deriving equal, compare]
+    [@@deriving equal ~localize, compare ~localize]
 
     let to_string = function
       | Only_report_app_crashing_errors -> "Fatal"
@@ -1139,7 +1141,13 @@ module Linter = struct
       | Unsafe_target_blank
       | Clickable_role_but_no_tabindex
       | Button_without_valid_type
-    [@@deriving hash, compare, sexp, equal, enumerate, string ~capitalize:"Sentence case"]
+    [@@deriving
+      hash
+      , compare ~localize
+      , sexp
+      , equal ~localize
+      , enumerate
+      , string ~capitalize:"Sentence case"]
 
     let severity = function
       | Undetectable_clickable_element -> Severity.Report_all_errors

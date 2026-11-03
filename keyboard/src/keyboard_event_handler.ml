@@ -19,6 +19,50 @@ module Condition = struct
     Option.map (get_target ev) ~f:(fun elem -> elem##.classList)
   ;;
 
+  let contenteditable_target_selector =
+    {|[contenteditable]:not([contenteditable="false"])|}
+  ;;
+
+  let interactive_target_selector =
+    String.concat
+      ~sep:", "
+      [ "a[href]"
+      ; "button"
+      ; "input"
+      ; "select"
+      ; "textarea"
+      ; contenteditable_target_selector
+      ; {|[tabindex]:not([tabindex="-1"])|}
+      ; {|[role="button"]|}
+      ; {|[role="checkbox"]|}
+      ; {|[role="combobox"]|}
+      ; {|[role="link"]|}
+      ; {|[role="listbox"]|}
+      ; {|[role="menuitem"]|}
+      ; {|[role="menuitemcheckbox"]|}
+      ; {|[role="menuitemradio"]|}
+      ; {|[role="option"]|}
+      ; {|[role="radio"]|}
+      ; {|[role="slider"]|}
+      ; {|[role="spinbutton"]|}
+      ; {|[role="switch"]|}
+      ; {|[role="tab"]|}
+      ; {|[role="textbox"]|}
+      ]
+  ;;
+
+  let target_is_within ~selector ev =
+    match get_target ev with
+    | None -> false
+    | Some target -> Js.Opt.test ((Js.Unsafe.coerce target)##closest (Js.string selector))
+  ;;
+
+  let has_interactive_target = target_is_within ~selector:interactive_target_selector
+
+  let has_contenteditable_target =
+    target_is_within ~selector:contenteditable_target_selector
+  ;;
+
   let input_cond ev ~on_input ~on_textarea =
     match get_target ev with
     | None -> false
@@ -31,6 +75,10 @@ module Condition = struct
 
   let has_input_target ev =
     input_cond ev ~on_input:(fun _ -> true) ~on_textarea:(fun _ -> true)
+  ;;
+
+  let has_input_or_contenteditable_target =
+    or_ has_input_target has_contenteditable_target
   ;;
 
   let has_text_input_target ev =
@@ -198,7 +246,7 @@ let merge_exn =
 
 module Uid_pair = struct
   module T = struct
-    type t = Uid.t * Uid.t [@@deriving sexp, hash, compare]
+    type t = Uid.t * Uid.t [@@deriving sexp, hash, compare ~localize]
   end
 
   include T

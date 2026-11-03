@@ -81,7 +81,7 @@ module Person = struct
   let combine _ right = right
 end
 
-module H = Attr.Hooks.Make (struct
+module H = Attr.Hooks.Make_js_of_ocaml (struct
     module State = Unit
     module Input = Person
 

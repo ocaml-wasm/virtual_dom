@@ -212,7 +212,7 @@ let%expect_test "empty div with float attribute" =
 
 let%expect_test "widget" =
   let widget =
-    Node.widget
+    Node.widget_js_of_ocaml
       ~id:(Type_equal.Id.create ~name:"name_goes_here" [%sexp_of: opaque])
       ~init:(fun _ -> failwith "unreachable")
       ()
@@ -228,13 +228,13 @@ let%expect_test "widget" =
 
 let%expect_test "widget with a vdom_for_testing" =
   let widget =
-    Node.widget
+    Node.widget_js_of_ocaml
       ~id:(Type_equal.Id.create ~name:"name_goes_here" [%sexp_of: opaque])
       ~vdom_for_testing:
         (lazy
           (Node.div
              ~attrs:
-               [ Attr.on_click (fun _ ->
+               [ Attr.on_click_js_of_ocaml (fun _ ->
                    print_endline "inside handler";
                    Effect.Ignore)
                ]
@@ -254,7 +254,7 @@ let%expect_test "widget with a vdom_for_testing" =
 let%expect_test "widget inside of something else" =
   let widget =
     Node.div
-      [ Node.widget
+      [ Node.widget_js_of_ocaml
           ~id:(Type_equal.Id.create ~name:"name_goes_here" [%sexp_of: opaque])
           ~init:(fun _ -> failwith "unreachable")
           ()
@@ -274,7 +274,7 @@ let%expect_test "widget inside of something else" =
 
 let%expect_test "widget with info" =
   let widget =
-    Node.widget
+    Node.widget_js_of_ocaml
       ~vdom_for_testing:(lazy (Node.create "widget" [ Node.text "info name" ]))
       ~id:(Type_equal.Id.create ~name:"name_goes_here" [%sexp_of: opaque])
       ~init:(fun _ -> failwith "unreachable")
@@ -291,7 +291,7 @@ let%expect_test "widget with info" =
 
 let%expect_test "opaque_widget" =
   let widget =
-    Node.widget
+    Node.widget_js_of_ocaml
       ~id:(Type_equal.Id.create ~name:"name_goes_here" [%sexp_of: opaque])
       ~init:(fun _ -> failwith "unreachable")
       ()
@@ -306,7 +306,7 @@ let%expect_test "opaque_widget" =
 ;;
 
 let%expect_test "empty div with callback" =
-  show (Node.div ~attrs:[ Attr.on_click (Fn.const Effect.Ignore) ] []);
+  show (Node.div ~attrs:[ Attr.on_click_js_of_ocaml (Fn.const Effect.Ignore) ] []);
   [%expect
     {|
     (Element ((tag_name div) (handlers ((onclick <handler>)))))
@@ -418,7 +418,7 @@ let%expect_test "empty div with [many] different attributes" =
     (Node.div
        ~attrs:
          [ Attr.class_ "a"
-         ; Attr.on_click (fun _ -> Ui_effect.Ignore)
+         ; Attr.on_click_js_of_ocaml (fun _ -> Ui_effect.Ignore)
          ; Attr.style Css_gen.bold
          ; Attr.class_ "b"
          ; Attr.style (Css_gen.z_index 42)
@@ -427,7 +427,7 @@ let%expect_test "empty div with [many] different attributes" =
          ; Attr.Always_focus_hook.attr `Read_the_docs__this_hook_is_unpredictable
          ; Attr.style (Css_gen.display `Table)
          ; Attr.class_ "d"
-         ; Attr.on_click (fun _ -> Ui_effect.Ignore)
+         ; Attr.on_click_js_of_ocaml (fun _ -> Ui_effect.Ignore)
          ; Attr.Always_focus_hook.attr `Read_the_docs__this_hook_is_unpredictable
          ]
        []);
@@ -481,8 +481,8 @@ let%expect_test "empty div with [many] different attributes" =
         [ Attr.(
             many_without_merge
               [ class_ "a"
-              ; on_click (fun _ -> Ui_effect.Ignore)
-              ; on_blur (fun _ -> Ui_effect.Ignore)
+              ; on_click_js_of_ocaml (fun _ -> Ui_effect.Ignore)
+              ; on_blur_js_of_ocaml (fun _ -> Ui_effect.Ignore)
               ; style Css_gen.bold
               ; id "my-id"
               ; checked
@@ -578,7 +578,7 @@ let%expect_test "[many_without_merge] inside merge" =
 
 let%expect_test "combining hooks" =
   let module H =
-    Virtual_dom.Vdom.Attr.Hooks.Make (struct
+    Virtual_dom.Vdom.Attr.Hooks.Make_js_of_ocaml (struct
       module State = Unit
 
       module Input = struct
@@ -645,7 +645,7 @@ let%expect_test "path censoring" =
 let%expect_test "literal onclick attr and on_click event handler can be differentiated." =
   show
     (Node.div
-       [ Node.div ~attrs:[ Attr.on_click (Fn.const Effect.Ignore) ] []
+       [ Node.div ~attrs:[ Attr.on_click_js_of_ocaml (Fn.const Effect.Ignore) ] []
        ; Node.div ~attrs:[ Attr.create "onclick" "" ] []
        ]);
   [%expect

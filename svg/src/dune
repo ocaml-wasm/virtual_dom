@@ -2,5 +2,5 @@
  (name virtual_dom_svg)
  (public_name virtual_dom.svg)
  (preprocess
-  (pps js_of_ocaml-ppx ppx_jane))
+  (pps js_of_ocaml-ppx ppx_jane -compare-require-explicit-locality))
  (libraries core css_gen virtual_dom))

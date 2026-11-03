@@ -17,16 +17,16 @@ end
 
 let diff_patch ~prev ~next ~element =
   let diff = Node.Patch.create ~previous:prev ~current:next in
-  let (_ : Js_of_ocaml.Dom_html.element Js.t) = Node.Patch.apply diff element in
+  let (_ : Browser_types.html_element Js.t) = Node.Patch.apply diff element in
   ()
 ;;
 
 module Widget (K : Comparator.S) = struct
-  type dom = Dom_html.element
+  type dom = Browser_types.html_element
 
   module State = struct
     type t =
-      { elements : (Node.t * Dom_html.element Js.t) Map.M(K).t
+      { elements : (Node.t * Browser_types.html_element Js.t) Map.M(K).t
       ; me : dom Js.t
       }
 
@@ -66,7 +66,7 @@ module Widget (K : Comparator.S) = struct
        structure by attempting to pair up rows to diff and re-insert. *)
     type t =
       { added : (K.t * Node.t) list
-      ; removed : (K.t * Node.t * Dom_html.element Js.t) list
+      ; removed : (K.t * Node.t * Browser_types.html_element Js.t) list
       ; state : State.t
       }
 
@@ -109,7 +109,9 @@ module Widget (K : Comparator.S) = struct
           do_change ~key_before:key ~key_after:key ~elements:state.elements empty_node
         in
         let elements = Map.remove elements key in
-        Dom.removeChild state.me empty_element;
+        let (_ : Browser_types.node Js.t) =
+          state.me##removeChild ~child:(empty_element :> Browser_types.node Js.t)
+        in
         finalize_loop
           { added = []; removed; state = { state with elements } }
           ~to_re_insert
@@ -130,14 +132,6 @@ module Widget (K : Comparator.S) = struct
         finalize_loop { added; removed; state = { state with elements } } ~to_re_insert
     ;;
 
-    let prepend (element : Dom.element Js.t) (node : Dom.node Js.t) : unit =
-      (* NOTE: This is done because Js_of_ocaml does not have bindings to the prepend
-         method yet.
-
-         https://developer.mozilla.org/en-US/docs/Web/API/Element/prepend *)
-      Js.Unsafe.meth_call element "prepend" [| Js.Unsafe.inject node |]
-    ;;
-
     let finalize t =
       let { state; _ }, to_re_insert =
         finalize_loop t ~to_re_insert:(Map.empty (module K))
@@ -148,11 +142,15 @@ module Widget (K : Comparator.S) = struct
            in the DOM. *)
         match Map.closest_key state.elements `Less_than key with
         | Some (_k, (_vdom, prior)) ->
-          state.me##insertBefore (node :> Dom.node Js.t) prior##.nextSibling
-          |> (ignore : Dom.node Js.t -> unit)
+          state.me##insertBefore
+            ~node:(node :> Browser_types.node Js.t)
+            ~child:prior##.nextSibling
+          |> (ignore : Browser_types.node Js.t -> unit)
         | None ->
-          let me = (state.me :> Dom.element Js.t) in
-          prepend me (node :> Dom.node Js.t));
+          state.me##prepend_1
+            ~node:
+              (Browser_types.node_to_node_or_trusted_script_or_string
+                 (node :> Browser_types.node Js.t)));
       state
     ;;
   end
@@ -162,7 +160,8 @@ module Widget (K : Comparator.S) = struct
     let elements =
       Map.map input.Input.children ~f:(fun vdom ->
         let element = Node.to_dom vdom in
-        dom##appendChild (element :> Dom.node Js.t) |> (ignore : Dom.node Js.t -> unit);
+        dom##appendChild ~node:(element :> Browser_types.node Js.t)
+        |> (ignore : Browser_types.node Js.t -> unit);
         vdom, element)
     in
     { State.elements; me = dom }, dom

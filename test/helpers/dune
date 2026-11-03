@@ -2,6 +2,6 @@
  (name virtual_dom_test_helpers)
  (public_name virtual_dom.vdom_test_helpers)
  (preprocess
-  (pps js_of_ocaml-ppx ppx_jane))
+  (pps js_of_ocaml-ppx ppx_jane -compare-require-explicit-locality))
  (libraries core js_of_ocaml lambdasoup ui_effect uri vdom_keyboard
    virtual_dom))

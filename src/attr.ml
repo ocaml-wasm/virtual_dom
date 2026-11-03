@@ -7,7 +7,7 @@ let explicitly_print_locations = ref false
 let () =
   (* use the native-javascript implementation of float -> string with a fixed number of
      numbers after the decimal place. *)
-  Css_gen.Private.float_to_string_with_fixed := Dom_float.to_string_fixed
+  Css_gen.Private.set_float_to_string_with_fixed Dom_float.to_string_fixed
 ;;
 
 (** This has 3 kinds of constructors.
@@ -31,8 +31,26 @@ module Event_handler : sig
   type t
 
   val create
-    :  handler:((#Dom_html.event as 'a) Js.t -> unit Ui_effect.t)
-    -> type_id:'a Type_equal.Id.t
+    :  handler:((#Browser_types.event as 'a) Js.t -> unit Ui_effect.t)
+    -> type_id:('a * #Dom_html.event) Type_equal.Id.t
+    -> t
+
+  (** This method is unsafe but allows us to coerce from [Dom_html] to [Browser_types]. We
+      must be careful when we are defining the type ids so that the conceptual types they
+      point to are equivalent
+
+      It attempts to be somewhat safe by requiring the [type_id] to be passed in to
+      constrain the coercion *)
+  val unsafe_coerce_from_browser_to_dom_html
+    :  'browser Js.t
+    -> type_id:
+         ((#Browser_types.event as 'browser) * (#Dom_html.event as 'dom_html))
+           Type_equal.Id.t
+    -> 'dom_html Js.t
+
+  val create_js_of_ocaml
+    :  handler:((#Dom_html.event as 'b) Js.t -> unit Ui_effect.t)
+    -> type_id:(#Browser_types.event * 'b) Type_equal.Id.t
     -> t
 
   val get_function : t -> Js.Unsafe.any
@@ -40,21 +58,47 @@ module Event_handler : sig
 end = struct
   type t =
     | T :
-        { type_id : 'a Type_equal.Id.t
-        ; handler : (#Dom_html.event as 'a) Js.t -> unit Ui_effect.t
-        ; lowered : (_, (#Dom_html.event as 'a) Js.t) Dom.event_listener Lazy.t
+        { type_id : ('a * _) Type_equal.Id.t
+        ; handler : (#Browser_types.event as 'a) Js.t -> unit Ui_effect.t
+        ; lowered : (_, (#Browser_types.event as 'a) Js.t -> unit) Js.meth_callback Lazy.t
         }
         -> t
 
-  let create ~handler ~type_id =
+  let create
+    ~(handler : (#Browser_types.event as 'a) Js.t -> unit Ui_effect.t)
+    ~(type_id : ('a * _) Type_equal.Id.t)
+    =
     let lowered =
       lazy
-        (Dom.handler (fun e ->
+        (Js.Unsafe.callback (fun e ->
            Effect.Expert.handle e (handler e) ~on_exn:(fun exn ->
-             Exn.reraise exn "Unhandled exception raised in effect");
-           Js._true))
+             Exn.reraise exn "Unhandled exception raised in effect")))
     in
     T { handler; lowered; type_id }
+  ;;
+
+  (** This method is unsafe but allows us to coerce from [Dom_html] to [Browser_types]. We
+      must be careful when we are defining the type ids so that the conceptual types they
+      point to are equivalent
+
+      It attempts to be somewhat safe by requiring the [type_id] to be passed in to
+      constrain the coercion *)
+  let unsafe_coerce_from_browser_to_dom_html
+    :  'browser Js.t
+    -> type_id:
+         ((#Browser_types.event as 'browser) * (#Dom_html.event as 'dom_html))
+           Type_equal.Id.t
+    -> 'dom_html Js.t
+    =
+    fun browser ~type_id:_ -> Obj.magic browser
+  ;;
+
+  let create_js_of_ocaml
+    ~(handler : 'b Js.t -> unit Ui_effect.t)
+    ~(type_id : (#Browser_types.event * (#Dom_html.event as 'b)) Type_equal.Id.t)
+    =
+    let handler event = handler (unsafe_coerce_from_browser_to_dom_html event ~type_id) in
+    create ~handler ~type_id
   ;;
 
   let get_function (T { lowered; _ }) = Js.Unsafe.inject (Lazy.force lowered)
@@ -283,8 +327,8 @@ let to_raw attr =
   let take_second_classes ~here first second =
     if not (List.is_empty first)
     then (
-      let first = List.sort ~compare:[%compare: string] first in
-      let second = List.sort ~compare:[%compare: string] second in
+      let first = List.sort ~compare:([%compare: string] [@mode local]) first in
+      let second = List.sort ~compare:([%compare: string] [@mode local]) second in
       Unmerged_warning_mode.warn_s
         ~here
         [%message
@@ -510,31 +554,141 @@ module Type_id = struct
   (* We provide a trivial [to_sexp] function since we only want to unify type ids and not
      convert types to ids *)
   let create name = Type_equal.Id.create ~name (fun _ -> Sexplib.Sexp.List [])
-  let (event : Dom_html.event Type_equal.Id.t) = create "event"
-  let (focus : Dom_html.focusEvent Type_equal.Id.t) = create "focusEvent"
-  let (mouse : Dom_html.mouseEvent Type_equal.Id.t) = create "mouseEvent"
-  let (keyboard : Dom_html.keyboardEvent Type_equal.Id.t) = create "keyboardEvent"
-  let (submit : Dom_html.submitEvent Type_equal.Id.t) = create "submitEvent"
-  let (mousewheel : Dom_html.mousewheelEvent Type_equal.Id.t) = create "mousewheelEvent"
-  let (wheel : Dom_html.wheelEvent Type_equal.Id.t) = create "wheelwheelEvent"
-  let (clipboard : Dom_html.clipboardEvent Type_equal.Id.t) = create "clipboardEvent"
-  let (drag : Dom_html.dragEvent Type_equal.Id.t) = create "dragEvent"
-  let (pointer : Dom_html.pointerEvent Type_equal.Id.t) = create "pointerEvent"
-  let (animation : Dom_html.animationEvent Type_equal.Id.t) = create "animationEvent"
+  let (event : (Browser_types.event * Dom_html.event) Type_equal.Id.t) = create "event"
+
+  let (focus : (Browser_types.focus_event * Dom_html.focusEvent) Type_equal.Id.t) =
+    create "focusEvent"
+  ;;
+
+  let (mouse : (Browser_types.mouse_event * Dom_html.mouseEvent) Type_equal.Id.t) =
+    create "mouseEvent"
+  ;;
+
+  let (keyboard : (Browser_types.keyboard_event * Dom_html.keyboardEvent) Type_equal.Id.t)
+    =
+    create "keyboardEvent"
+  ;;
+
+  let (submit : (Browser_types.submit_event * Dom_html.submitEvent) Type_equal.Id.t) =
+    create "submitEvent"
+  ;;
+
+  let (mousewheel : (Browser_types.event * Dom_html.mousewheelEvent) Type_equal.Id.t) =
+    create "mousewheelEvent"
+  ;;
+
+  let (wheel : (Browser_types.wheel_event * Dom_html.wheelEvent) Type_equal.Id.t) =
+    create "wheelwheelEvent"
+  ;;
+
+  let (input : (Browser_types.input_event * Dom_html.event) Type_equal.Id.t) =
+    create "inputEvent"
+  ;;
+
+  let (toggle : (Browser_types.toggle_event * Dom_html.event) Type_equal.Id.t) =
+    create "toggleEvent"
+  ;;
+
+  let (clipboard :
+        (Browser_types.clipboard_event * Dom_html.clipboardEvent) Type_equal.Id.t)
+    =
+    create "clipboardEvent"
+  ;;
+
+  let (drag : (Browser_types.drag_event * Dom_html.dragEvent) Type_equal.Id.t) =
+    create "dragEvent"
+  ;;
+
+  let (pointer : (Browser_types.pointer_event * Dom_html.pointerEvent) Type_equal.Id.t) =
+    create "pointerEvent"
+  ;;
+
+  let (animation :
+        (Browser_types.animation_event * Dom_html.animationEvent) Type_equal.Id.t)
+    =
+    create "animationEvent"
+  ;;
+
+  let (contextmenu : (Browser_types.pointer_event * Dom_html.mouseEvent) Type_equal.Id.t) =
+    create "contextMenu"
+  ;;
+
+  let (click : (Browser_types.pointer_event * Dom_html.mouseEvent) Type_equal.Id.t) =
+    create "click"
+  ;;
 end
+
+(* property based handlers *)
+let on type_id name (handler : #Browser_types.event Js.t -> unit Ui_effect.t) : t =
+  let handler = Event_handler.create ~handler ~type_id in
+  Handler { name; handler }
+;;
+
+let const_ignore _ = Effect.Ignore
+
+class type value_element = object
+  method value : Js.js_string Js.t Js.prop
+end
+
+type value_coercion = Dom_html.element Js.t -> value_element Js.t Js.opt
+
+let run_coercion coercion target prev =
+  match prev with
+  | Some _ -> prev
+  | None -> Js.Opt.to_option (coercion target)
+;;
+
+let coerce_value_element_in_test target =
+  let open Dom_html.CoerceTo in
+  None
+  |> run_coercion (input :> value_coercion) target
+  |> run_coercion (select :> value_coercion) target
+  |> run_coercion (textarea :> value_coercion) target
+;;
+
+let coerce_value_element (target : #Browser_types.event_target Js.t) =
+  match
+    (* We are intentionally matching on [am_in_browser] and not [am_in_browser_like_api]
+       because these type conversions fail in [jsdom], potentially due to [jsdom] not
+       exactly matching the browser in how it defines these elements *)
+    Am_running_how_js.(am_in_browser am_running_how)
+  with
+  | true ->
+    let%bind.Option window = Browser_expert.Global.window () in
+    List.find_map
+      [ (window##._HTMLInputElement_t :> value_element Browser_js_types.instance_t)
+      ; (window##._HTMLSelectElement_t :> value_element Browser_js_types.instance_t)
+      ; (window##._HTMLTextAreaElement_t :> value_element Browser_js_types.instance_t)
+      ]
+      ~f:(fun to_ -> Browser_expert.coerce ~to_ target)
+  | false -> coerce_value_element_in_test (Js.Unsafe.coerce target)
+;;
+
+let on_input_event type_id event handler =
+  on type_id event (fun ev ->
+    Js.Opt.case ev##.target const_ignore (fun target ->
+      Option.value_map
+        (coerce_value_element target)
+        ~default:Effect.Ignore
+        ~f:(fun target ->
+          let text = Js.to_string target##.value in
+          handler ev text)))
+;;
+
+let to_raw l = to_raw l
 
 (* addEventListener based handlers *)
 module Focusin = Event_listener.Make (struct
-    type event = Dom_html.focusEvent
+    type event = Browser_types.focus_event
 
-    let event_kind = Dom_html.Event.make "focusin"
+    let event_kind = Browser_extra.Event_type.focusin
     let target = Event_listener.Target.Element
   end)
 
 module Focusout = Event_listener.Make (struct
-    type event = Dom_html.focusEvent
+    type event = Browser_types.focus_event
 
-    let event_kind = Dom_html.Event.make "focusout"
+    let event_kind = Browser_extra.Event_type.focusout
     let target = Event_listener.Target.Element
   end)
 
@@ -546,18 +700,12 @@ let on_focusout handler =
   Focusout.create Bubbling ~f:handler |> create_hook "element-focusout-listener"
 ;;
 
-(* property based handlers *)
-let on type_id name (handler : #Dom_html.event Js.t -> unit Ui_effect.t) : t =
-  let handler = Event_handler.create ~handler ~type_id in
-  Handler { name; handler }
-;;
-
 let on_focus = on Type_id.focus "focus"
 let on_blur = on Type_id.focus "blur"
 let on_cancel = on Type_id.event "cancel"
-let on_click = on Type_id.mouse "click"
+let on_click = on Type_id.click "click"
 let on_close = on Type_id.event "close"
-let on_contextmenu = on Type_id.mouse "contextmenu"
+let on_contextmenu = on Type_id.contextmenu "contextmenu"
 let on_double_click = on Type_id.mouse "dblclick"
 let on_drag = on Type_id.drag "drag"
 let on_dragstart = on Type_id.drag "dragstart"
@@ -580,10 +728,11 @@ let on_scroll = on Type_id.event "scroll"
 let on_load = on Type_id.event "load"
 let on_error = on Type_id.event "error"
 let on_submit = on Type_id.submit "submit"
-let on_toggle = on Type_id.event "toggle"
+let on_toggle = on Type_id.toggle "toggle"
 let on_pointerdown = on Type_id.pointer "pointerdown"
 let on_pointerup = on Type_id.pointer "pointerup"
 let on_pointermove = on Type_id.pointer "pointermove"
+let on_pointercancel = on Type_id.pointer "pointercancel"
 let on_pointerenter = on Type_id.pointer "pointerenter"
 let on_pointerleave = on Type_id.pointer "pointerleave"
 let on_mousewheel = on Type_id.mousewheel "mousewheel"
@@ -594,49 +743,18 @@ let on_paste = on Type_id.clipboard "paste"
 let on_reset = on Type_id.event "reset"
 let on_animationend = on Type_id.animation "animationend"
 let on_auxclick = on Type_id.mouse "auxclick"
-let const_ignore _ = Effect.Ignore
-
-class type value_element = object
-  inherit Dom_html.element
-  method value : Js.js_string Js.t Js.prop
-end
-
-type value_coercion = Dom_html.element Js.t -> value_element Js.t Js.opt
-
-let run_coercion coercion target prev =
-  match prev with
-  | Some _ -> prev
-  | None -> Js.Opt.to_option (coercion target)
-;;
-
-let coerce_value_element target =
-  let open Dom_html.CoerceTo in
-  None
-  |> run_coercion (input :> value_coercion) target
-  |> run_coercion (select :> value_coercion) target
-  |> run_coercion (textarea :> value_coercion) target
-;;
-
-let on_input_event type_id event handler =
-  on type_id event (fun ev ->
-    Js.Opt.case ev##.target const_ignore (fun target ->
-      Option.value_map
-        (coerce_value_element target)
-        ~default:Effect.Ignore
-        ~f:(fun target ->
-          let text = Js.to_string target##.value in
-          handler ev text)))
-;;
-
 let on_change = on_input_event Type_id.event "change"
-let on_input = on_input_event Type_id.event "input"
-let to_raw l = to_raw l
+let on_input = on_input_event Type_id.input "input"
 
 let on_file_input handler =
   on Type_id.event "input" (fun ev ->
     Js.Opt.case ev##.target const_ignore (fun target ->
-      Js.Opt.case (Dom_html.CoerceTo.input target) const_ignore (fun target ->
-        Js.Opt.case target##.files const_ignore (fun files -> handler ev files))))
+      match
+        let%bind.Option window = Browser_expert.Global.window () in
+        Browser_expert.coerce ~to_:window##._HTMLInputElement_t target
+      with
+      | Some target -> handler ev (Js.Opt.to_option target##.files)
+      | None -> Effect.Ignore))
 ;;
 
 module Always_focus_hook = struct
@@ -656,7 +774,7 @@ module Always_focus_hook = struct
     let destroy () () _ = ()
   end
 
-  module Hook = Hooks.Make (T)
+  module Hook = Hooks.Make_js_of_ocaml (T)
 
   let attr `Read_the_docs__this_hook_is_unpredictable =
     (* Append the id to the name of the hook to ensure that it is distinct from all other
@@ -692,7 +810,7 @@ module Single_focus_hook () = struct
     let destroy _ () _ = ()
   end
 
-  module Hook = Hooks.Make (T)
+  module Hook = Hooks.Make_js_of_ocaml (T)
 
   let attr `Read_the_docs__this_hook_is_unpredictable ~after =
     (* Append the id to the name of the hook to ensure that it is distinct from all other
@@ -745,7 +863,7 @@ module Multi = struct
   ;;
 end
 
-module Css_var_hook = Hooks.Make (struct
+module Css_var_hook = Hooks.Make_js_of_ocaml (struct
     open Js_of_ocaml
     module State = Unit
 
@@ -771,7 +889,7 @@ module Css_var_hook = Hooks.Make (struct
 
     let update ~old_input ~new_input () (element : Dom_html.element Js.t) =
       if phys_equal old_input new_input
-         || [%equal: (string * string) list] old_input new_input
+         || ([%equal: (string * string) list] [@mode local]) old_input new_input
       then ()
       else (
         destroy old_input () element;
@@ -781,6 +899,12 @@ module Css_var_hook = Hooks.Make (struct
 
 let __css_vars_no_kebabs alist = create_hook "custom-css-vars" (Css_var_hook.create alist)
 let css_var ~name v = __css_vars_no_kebabs [ "--" ^ name, v ]
+
+let css_var' ~name v =
+  match String.is_prefix ~prefix:"--" name with
+  | true -> __css_vars_no_kebabs [ name, v ] |> Or_error.return
+  | false -> Or_error.error_string {%string|[%{name}] does not start with [--]|}
+;;
 
 module Expert = struct
   let rec filter_by_kind t ~f =
@@ -823,3 +947,96 @@ let create_js_string ~(here : [%call_pos]) name value = create_js_string ~here n
 let property ~(here : [%call_pos]) name value = property ~here name value
 let string_property ~(here : [%call_pos]) name value = string_property ~here name value
 let bool_property ~(here : [%call_pos]) name value = bool_property ~here name value
+
+(* Older Js_of_ocaml implementations *)
+
+(* addEventListener based handlers *)
+module Focusin_js_of_ocaml = Event_listener.Make_js_of_ocaml (struct
+    type event = Dom_html.focusEvent
+
+    let event_kind = Dom_html.Event.make "focusin"
+    let target = Event_listener.Target.Element
+  end)
+
+module Focusout_js_of_ocaml = Event_listener.Make_js_of_ocaml (struct
+    type event = Dom_html.focusEvent
+
+    let event_kind = Dom_html.Event.make "focusout"
+    let target = Event_listener.Target.Element
+  end)
+
+let on_focusin_js_of_ocaml handler =
+  Focusin_js_of_ocaml.create Bubbling ~f:handler |> create_hook "element-focusin-listener"
+;;
+
+let on_focusout_js_of_ocaml handler =
+  Focusout_js_of_ocaml.create Bubbling ~f:handler
+  |> create_hook "element-focusout-listener"
+;;
+
+(* property based handlers *)
+let on_js_of_ocaml type_id name (handler : #Dom_html.event Js.t -> unit Ui_effect.t) : t =
+  let handler = Event_handler.create_js_of_ocaml ~handler ~type_id in
+  Handler { name; handler }
+;;
+
+let on_focus_js_of_ocaml = on_js_of_ocaml Type_id.focus "focus"
+let on_blur_js_of_ocaml = on_js_of_ocaml Type_id.focus "blur"
+let on_cancel_js_of_ocaml = on_js_of_ocaml Type_id.event "cancel"
+let on_click_js_of_ocaml = on_js_of_ocaml Type_id.click "click"
+let on_close_js_of_ocaml = on_js_of_ocaml Type_id.event "close"
+let on_contextmenu_js_of_ocaml = on_js_of_ocaml Type_id.contextmenu "contextmenu"
+let on_double_click_js_of_ocaml = on_js_of_ocaml Type_id.mouse "dblclick"
+let on_drag_js_of_ocaml = on_js_of_ocaml Type_id.drag "drag"
+let on_dragstart_js_of_ocaml = on_js_of_ocaml Type_id.drag "dragstart"
+let on_dragend_js_of_ocaml = on_js_of_ocaml Type_id.drag "dragend"
+let on_dragenter_js_of_ocaml = on_js_of_ocaml Type_id.drag "dragenter"
+let on_dragleave_js_of_ocaml = on_js_of_ocaml Type_id.drag "dragleave"
+let on_dragover_js_of_ocaml = on_js_of_ocaml Type_id.drag "dragover"
+let on_drop_js_of_ocaml = on_js_of_ocaml Type_id.drag "drop"
+let on_mousemove_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mousemove"
+let on_mouseup_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mouseup"
+let on_mousedown_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mousedown"
+let on_mouseenter_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mouseenter"
+let on_mouseleave_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mouseleave"
+let on_mouseover_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mouseover"
+let on_mouseout_js_of_ocaml = on_js_of_ocaml Type_id.mouse "mouseout"
+let on_keyup_js_of_ocaml = on_js_of_ocaml Type_id.keyboard "keyup"
+let on_keypress_js_of_ocaml = on_js_of_ocaml Type_id.keyboard "keypress"
+let on_keydown_js_of_ocaml = on_js_of_ocaml Type_id.keyboard "keydown"
+let on_scroll_js_of_ocaml = on_js_of_ocaml Type_id.event "scroll"
+let on_load_js_of_ocaml = on_js_of_ocaml Type_id.event "load"
+let on_error_js_of_ocaml = on_js_of_ocaml Type_id.event "error"
+let on_submit_js_of_ocaml = on_js_of_ocaml Type_id.submit "submit"
+let on_toggle_js_of_ocaml = on_js_of_ocaml Type_id.toggle "toggle"
+let on_pointerdown_js_of_ocaml = on_js_of_ocaml Type_id.pointer "pointerdown"
+let on_pointerup_js_of_ocaml = on_js_of_ocaml Type_id.pointer "pointerup"
+let on_pointermove_js_of_ocaml = on_js_of_ocaml Type_id.pointer "pointermove"
+let on_pointercancel_js_of_ocaml = on_js_of_ocaml Type_id.pointer "pointercancel"
+let on_pointerenter_js_of_ocaml = on_js_of_ocaml Type_id.pointer "pointerenter"
+let on_pointerleave_js_of_ocaml = on_js_of_ocaml Type_id.pointer "pointerleave"
+let on_mousewheel_js_of_ocaml = on_js_of_ocaml Type_id.mousewheel "mousewheel"
+let on_wheel_js_of_ocaml = on_js_of_ocaml Type_id.wheel "wheel"
+let on_copy_js_of_ocaml = on_js_of_ocaml Type_id.clipboard "copy"
+let on_cut_js_of_ocaml = on_js_of_ocaml Type_id.clipboard "cut"
+let on_paste_js_of_ocaml = on_js_of_ocaml Type_id.clipboard "paste"
+let on_reset_js_of_ocaml = on_js_of_ocaml Type_id.event "reset"
+let on_animationend_js_of_ocaml = on_js_of_ocaml Type_id.animation "animationend"
+let on_auxclick_js_of_ocaml = on_js_of_ocaml Type_id.mouse "auxclick"
+
+let on_file_input_js_of_ocaml handler =
+  on_js_of_ocaml Type_id.event "input" (fun ev ->
+    Js.Opt.case ev##.target const_ignore (fun target ->
+      Js.Opt.case (Dom_html.CoerceTo.input target) const_ignore (fun target ->
+        Js.Opt.case target##.files const_ignore (fun files -> handler ev files))))
+;;
+
+let on_input_event_js_of_ocaml type_id event handler =
+  let handler event =
+    Event_handler.unsafe_coerce_from_browser_to_dom_html event ~type_id |> handler
+  in
+  on_input_event type_id event handler
+;;
+
+let on_change_js_of_ocaml = on_input_event_js_of_ocaml Type_id.event "change"
+let on_input_js_of_ocaml = on_input_event_js_of_ocaml Type_id.input "input"

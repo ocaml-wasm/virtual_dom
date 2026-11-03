@@ -1,6 +1,13 @@
 (library
  (name ui_effect_test)
  (public_name virtual_dom.ui_effect_test)
+ (modules test_deferred_and_result_monads test_deferred_effect_error_handling
+   test_effect_error_handling ui_effect_test test_parallel_effects)
  (libraries async async_kernel core ui_effect ui_effect_of_deferred)
  (preprocess
   (pps ppx_jane)))
+
+(env
+ (_
+  (env-vars
+   (OCAMLPARAM w=-46,keywords=5.2,_))))

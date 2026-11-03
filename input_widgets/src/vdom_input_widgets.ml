@@ -42,9 +42,9 @@ module Validated = struct
         ; last_valid : 'a option
         ; error : string
         }
-  [@@deriving equal, sexp, bin_io, compare]
+  [@@deriving equal ~localize, sexp, bin_io, compare ~localize]
 
-  type 'a update = 'a t [@@deriving equal, sexp, bin_io, compare]
+  type 'a update = 'a t [@@deriving equal ~localize, sexp, bin_io, compare ~localize]
 
   let lift (type a) (module M : Stringable.S with type t = a) =
     (module struct
@@ -355,7 +355,7 @@ module Value_normalizing_hook = struct
     ;;
   end
 
-  include Attr.Hooks.Make (M)
+  include Attr.Hooks.Make_js_of_ocaml (M)
 
   (* [create value ~f] will set the "value" property to [value] if the element is not
      focused and on each change, run the current value through [f] to re-set it. Again,
@@ -384,7 +384,7 @@ module Dropdown = struct
       ~attrs:
         [ (merge merge_behavior)
             ([ Attr.class_ "widget-dropdown"
-             ; Attr.on_change (fun _ value ->
+             ; Attr.on_change_js_of_ocaml (fun _ value ->
                  on_change (Int.of_string value |> List.nth_exn values))
              ]
              |> maybe_disabled ~disabled
@@ -542,7 +542,7 @@ module Checkbox = struct
       [ Node.input
           ~attrs:
             ([ Attr.type_ "checkbox"
-             ; Attr.on_click (fun _ev -> on_toggle)
+             ; Attr.on_click_js_of_ocaml (fun _ev -> on_toggle)
              ; Attr.bool_property "checked" is_checked
              ]
              |> maybe_disabled ~disabled)
@@ -598,7 +598,7 @@ module Checklist = struct
            [ Node.input
                ~attrs:
                  ([ Attr.type_ "checkbox"
-                  ; Attr.on_click (fun _ev -> on_toggle item)
+                  ; Attr.on_click_js_of_ocaml (fun _ev -> on_toggle item)
                   ; Attr.bool_property "checked" (is_checked item)
                   ]
                   @ input_attrs
@@ -683,7 +683,7 @@ module Multi_select = struct
     let attrs =
       [ Attr.create "multiple" ""
       ; Attr.create "size" (Int.to_string size)
-      ; Attr.on_change (fun evt (_ : string) ->
+      ; Attr.on_change_js_of_ocaml (fun evt (_ : string) ->
           let target =
             match
               Js.Opt.to_option (Js.Opt.bind evt##.target Dom_html.CoerceTo.select)
@@ -719,7 +719,7 @@ module Multi_select = struct
           ~attrs:
             ([ Some (Attr.bool_property "selected" is_selected)
              ; Some
-                 (Attr.on_click (fun evt ->
+                 (Attr.on_click_js_of_ocaml (fun evt ->
                     let was_repeated_click =
                       (not (Js.to_bool evt##.ctrlKey))
                       && Set.equal selected (Set.singleton (module M) value)
@@ -790,8 +790,8 @@ module Entry = struct
       | Enter_key_pressed_or_focus_lost
 
     let listener = function
-      | Text_changed -> Attr.on_input
-      | Enter_key_pressed_or_focus_lost -> Attr.on_change
+      | Text_changed -> Attr.on_input_js_of_ocaml
+      | Enter_key_pressed_or_focus_lost -> Attr.on_change_js_of_ocaml
     ;;
   end
 
@@ -805,7 +805,7 @@ module Entry = struct
     match on_return with
     | None -> attrs
     | Some on_return ->
-      Attr.on_keydown (fun ev ->
+      Attr.on_keydown_js_of_ocaml (fun ev ->
         if ev##.keyCode = 13 then on_return () else Effect.Ignore)
       :: attrs
   ;;
@@ -844,7 +844,9 @@ module Entry = struct
     ~on_input
     ()
     =
-    [ Attr.string_property "value" value; Attr.on_input (fun _ev -> on_input) ]
+    [ Attr.string_property "value" value
+    ; Attr.on_input_js_of_ocaml (fun _ev -> on_input)
+    ]
     |> maybe_on_return on_return
     |> input_node ?extra_attrs ?disabled ?placeholder ~merge_behavior ?key
   ;;
@@ -1203,7 +1205,9 @@ module Button = struct
       Node.button
         ~attrs:
           [ (merge merge_behavior)
-              ([ Attr.on_click (fun _ev -> on_click result); Attr.type_ "button" ]
+              ([ Attr.on_click_js_of_ocaml (fun _ev -> on_click result)
+               ; Attr.type_ "button"
+               ]
                |> add_attrs extra_attrs)
           ]
         [ Node.text text ]
@@ -1231,7 +1235,7 @@ module Button = struct
     Node.button
       ~attrs:
         [ (merge merge_behavior)
-            ([ Attr.type_ "button"; Attr.on_click (fun _ev -> on_click ()) ]
+            ([ Attr.type_ "button"; Attr.on_click_js_of_ocaml (fun _ev -> on_click ()) ]
              |> maybe_disabled ~disabled
              |> add_attrs extra_attrs)
         ]
@@ -1273,7 +1277,7 @@ module Radio_buttons = struct
                  ([ Attr.type_ "radio"
                   ; Attr.name name
                   ; Attr.classes [ "radio-button" ]
-                  ; Attr.on_click (fun _ev -> on_click item)
+                  ; Attr.on_click_js_of_ocaml (fun _ev -> on_click item)
                   ; Attr.bool_property "checked" checked
                   ]
                   @ input_attrs
@@ -1367,7 +1371,7 @@ module File_select = struct
             ([ Attr.type_ "file"
              ; accept_attrs accept
              ; Attr.create "multiple" ""
-             ; Attr.on_file_input (fun _ev file_list ->
+             ; Attr.on_file_input_js_of_ocaml (fun _ev file_list ->
                  let files =
                    List.init file_list##.length ~f:(fun i ->
                      file_list##item i
@@ -1393,7 +1397,7 @@ module File_select = struct
         [ (merge merge_behavior)
             ([ Attr.type_ "file"
              ; accept_attrs accept
-             ; Attr.on_file_input (fun _ev file_list ->
+             ; Attr.on_file_input_js_of_ocaml (fun _ev file_list ->
                  let file = file_list##item 0 |> Js.Opt.to_option in
                  on_input file)
              ]

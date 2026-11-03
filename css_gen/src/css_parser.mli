@@ -1,3 +1,5 @@
+@@ portable
+
 open Core
 
 val validate_value : string -> unit Or_error.t

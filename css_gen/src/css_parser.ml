@@ -195,6 +195,12 @@ let test_parser p sexp_of_arg s =
 ;;
 
 module%test [@name "tests"] _ = struct
+  let%test_unit "Css_tokenizer.t crosses portability" =
+    let ct = Css_tokenizer.create "" in
+    let require_portable (_ : _ @ portable) = () in
+    require_portable (fun () -> ct)
+  ;;
+
   let%expect_test "" =
     let value =
       "0 4px 8px 0 RGBA(var(--js-text-color-rgb), 0.12), 0 2px 4px 0 \

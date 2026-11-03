@@ -30,8 +30,40 @@ type t =
       }
 
 module Widget : sig
-  module type S = sig
+  module type S_js_of_ocaml = sig
     type dom = private #Dom_html.element
+
+    module Input : sig
+      type t [@@deriving sexp_of]
+    end
+
+    module State : sig
+      type t [@@deriving sexp_of]
+    end
+
+    val name : string
+    val create : Input.t -> State.t * dom Js.t
+
+    val update
+      :  prev_input:Input.t
+      -> input:Input.t
+      -> state:State.t
+      -> element:dom Js.t
+      -> State.t * dom Js.t
+
+    val destroy : prev_input:Input.t -> state:State.t -> element:dom Js.t -> unit
+
+    (** Inside of tests, this widget can be printed and interacted with as though it were
+        instead, some other kind of vdom node. Use `Custom to choose that node, or
+        `Sexp_of_input to get a basic vdom node that just contains the sexp of the current
+        input to the widget. *)
+    val to_vdom_for_testing : [ `Custom of Input.t -> t | `Sexp_of_input ]
+  end
+
+  (* We're not able to use a singular module type due to the polymorphic/open class type
+     of [dom] *)
+  module type S = sig
+    type dom = private #Browser_types.html_element
 
     module Input : sig
       type t [@@deriving sexp_of]
@@ -274,7 +306,18 @@ val create_svg : string -> node_creator
 
     The one situation where [to_dom] is useful for the typical user is with the Widget
     API, since building a Widget entails generating the browser DOM element. *)
-val to_dom : t -> Dom_html.element Js.t
+val to_dom : t -> Browser_types.html_element Js.t
+
+(** We recommend using [to_dom] over this method.
+
+    Creates a new browser DOM element from a virtual-dom node. Note that calling this
+    function will give you a brand new element, which you then have to put into the DOM
+    yourself. Thus, you should probably not be calling this very often, since Bonsai and
+    Incr_dom both take care calling this function on the top-level view node.
+
+    The one situation where [to_dom] is useful for the typical user is with the Widget
+    API, since building a Widget entails generating the browser DOM element. *)
+val to_dom_js_of_ocaml : t -> Dom_html.element Js.t
 
 val to_raw : t -> Raw.Node.t
 
@@ -312,9 +355,52 @@ val to_raw : t -> Raw.Node.t
     v} *)
 val widget
   :  ?vdom_for_testing:t Lazy.t
+  -> ?destroy:('s -> (#Browser_types.html_element as 'browser) Js.t -> unit)
+  -> ?update:('s -> 'browser Js.t -> 's * 'browser Js.t)
+  -> id:('s * #Dom_html.element Js.t * 'browser Js.t) Type_equal.Id.t
+  -> init:(unit -> 's * 'browser Js.t)
+  -> unit
+  -> t
+
+(** We recommend using [widget] over this method
+
+    {v
+ Creates a Node.t that has fine-grained control over the Browser DOM node.
+
+    Callbacks
+    =========
+
+    init: Returns a Browser DOM Node and a widget state object.  The Browser
+    DOM node is mounted into the dom in the location where the Node.t
+    object would otherwise be.
+
+    update: Given the previous Browser DOM Node and state, makes any changes
+    necessary to either and returns a new state and Browser DOM Node.
+
+    destroy: Called when this Node.t is removed from the Virtual_dom.
+    Performs any necessary cleanup.
+
+    Other
+    =====
+
+    The [id] is used to compare widgets, and is used to make sure that the
+    state from one widget doesn't get interpreted as the state for another.
+    Otherwise, you would be able to implement Obj.magic using this API.
+
+
+    WARNING: While other Virtual_dom APIs shield the application from script
+    injection attacks, the [Widget.create] function allows a developer to
+    bypass these safeguards and manually create DOM nodes which could allow an
+    attacker to change the behavior of the application or exfiltrate data.
+
+    In using this API, you are being trusted to understand and follow security
+    best-practices.
+    v} *)
+val widget_js_of_ocaml
+  :  ?vdom_for_testing:t Lazy.t
   -> ?destroy:('s -> (#Dom_html.element as 'e) Js.t -> unit)
   -> ?update:('s -> 'e Js.t -> 's * 'e Js.t)
-  -> id:('s * 'e Js.t) Type_equal.Id.t
+  -> id:('s * 'e Js.t * #Browser_types.html_element Js.t) Type_equal.Id.t
   -> init:(unit -> 's * 'e Js.t)
   -> unit
   -> t
@@ -330,12 +416,26 @@ val widget_of_module
   :  (module Widget.S with type Input.t = 'input)
   -> ('input -> t) Staged.t
 
+(** We recommend using [widget_of_module] over this method
+
+    [widget_of_module_js_of_ocaml] is very similar to [widget], but it pulls all of the
+    callbacks out into a first-class module. Read the comment for [widget] to learn more.
+
+    It is very important that you call [widget_of_module] exactly once for any "widget
+    class" that you want to construct. Otherwise, the nodes created by it won't be
+    comparable against one another and the widget-diffing will just run
+    [destroy, init, destroy, init] over and over. *)
+val widget_of_module_js_of_ocaml
+  :  (module Widget.S_js_of_ocaml with type Input.t = 'input)
+  -> ('input -> t) Staged.t
+
 module Patch : sig
   type node := t
   type t
 
   val create : previous:node -> current:node -> t
-  val apply : t -> Dom_html.element Js.t -> Dom_html.element Js.t
+  val apply : t -> Browser_types.html_element Js.t -> Browser_types.html_element Js.t
+  val apply_js_of_ocaml : t -> Dom_html.element Js.t -> Dom_html.element Js.t
   val is_empty : t -> bool
 end
 

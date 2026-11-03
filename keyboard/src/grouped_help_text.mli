@@ -28,7 +28,7 @@ end
 
 module Command = Help_text.Command
 
-type t [@@deriving sexp, compare]
+type t [@@deriving sexp, compare ~localize]
 
 val empty : t
 val is_empty : t -> bool

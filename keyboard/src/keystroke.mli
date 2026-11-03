@@ -3,7 +3,7 @@ open Js_of_ocaml
 
 module Keyboard_code : sig
   type t = Dom_html.Keyboard_code.t
-  [@@deriving sexp, compare, bin_io, hash, enumerate, equal]
+  [@@deriving sexp, compare ~localize, bin_io, hash, enumerate, equal ~localize]
 
   val of_event : Dom_html.keyboardEvent Js.t -> t
 
@@ -23,7 +23,7 @@ module Keyboard_code : sig
   val to_key_code : t -> int
 end
 
-type t [@@deriving sexp, compare, bin_io, hash, sexp_grammar]
+type t [@@deriving sexp, compare ~localize, bin_io, hash, sexp_grammar]
 
 include Comparable.S_binable with type t := t
 include Hashable.S_binable with type t := t

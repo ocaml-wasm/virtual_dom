@@ -27,7 +27,7 @@ type t =
   { groups : Help_text.t Group_name.Map.t
   ; group_order : Group_name.t list
   }
-[@@deriving sexp, compare]
+[@@deriving sexp, compare ~localize]
 
 let empty = { groups = Group_name.Map.empty; group_order = [] }
 let is_empty t = Map.is_empty t.groups

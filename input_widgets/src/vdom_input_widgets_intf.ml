@@ -6,14 +6,14 @@ module type Display = sig
   val to_string : t -> string
 end
 
-module type Equal = sig
-  type t [@@deriving equal]
+module type%template [@mode m = (global, local)] Equal = sig
+  type t [@@deriving equal [@mode.explicit m]]
 
   include Display with type t := t
 end
 
-module type Enum = sig
-  type t [@@deriving equal, enumerate]
+module type%template [@mode m = (global, local)] Enum = sig
+  type t [@@deriving (equal [@mode.explicit m]), enumerate]
 
   include Display with type t := t
 end

@@ -2,5 +2,5 @@
  (public_name virtual_dom.keyboard)
  (name vdom_keyboard)
  (preprocess
-  (pps js_of_ocaml-ppx ppx_jane))
+  (pps js_of_ocaml-ppx ppx_jane -compare-require-explicit-locality))
  (libraries core css_gen js_of_ocaml ui_effect virtual_dom))

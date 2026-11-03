@@ -48,7 +48,7 @@ module Command = struct
     { keys : Keystroke.t list
     ; description : string
     }
-  [@@deriving sexp, compare]
+  [@@deriving sexp, compare ~localize]
 
   module Format = struct
     type t =
@@ -98,7 +98,7 @@ module Command = struct
   ;;
 end
 
-type t = Command.t list [@@deriving sexp, compare]
+type t = Command.t list [@@deriving sexp, compare ~localize]
 
 let empty = []
 let is_empty = List.is_empty

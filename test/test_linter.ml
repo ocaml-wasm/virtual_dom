@@ -27,12 +27,17 @@ let%expect_test "basic success" =
 ;;
 
 let%expect_test "button success" =
-  test {%html|<button type="button" on_click=%{on_click}>Hello!</button>|};
+  test
+    {%html|
+      <button type="button" on_click_js_of_ocaml=%{on_click}>
+        Hello!
+      </button>
+    |};
   [%expect {| ok! |}]
 ;;
 
 let%expect_test "basic failure" =
-  test {%html|<div on_click=%{on_click}>Hello!</div>|};
+  test {%html|<div on_click_js_of_ocaml=%{on_click}>Hello!</div>|};
   [%expect
     {|
     Linting Failures:
@@ -122,25 +127,47 @@ let%expect_test "bad target blank" =
     {%html|
       <div>
         <div class="unsafe">
-          <a href="https://example.com" target="_blank">Example</a>
-          <a href="mailto://example.com" target="_blank">Example</a>
-          <a href="https://example.com" target="_blank" rel="nofollow">Example</a>
-          <a href="https://example.com" target="_blank" rel="noopener opener"
-            >Example</a
-          >
-          <a href="https://example.com" target="_blank" rel="noreferrer">Example</a>
-          <a href="https://example.com" target="_blank" rel="noopener">Example</a>
+          <a href="https://example.com" target="_blank">
+            Example
+          </a>
+          <a href="mailto://example.com" target="_blank">
+            Example
+          </a>
+          <a href="https://example.com" target="_blank" rel="nofollow">
+            Example
+          </a>
+          <a href="https://example.com" target="_blank" rel="noopener opener">
+            Example
+          </a>
+          <a href="https://example.com" target="_blank" rel="noreferrer">
+            Example
+          </a>
+          <a href="https://example.com" target="_blank" rel="noopener">
+            Example
+          </a>
         </div>
         <div class="safe">
           <a href="https://example.com">Example</a>
-          <a href="https://example.com" target="_blank" rel="noopener noreferrer"
-            >Example</a
+          <a
+            href="https://example.com"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-          <a href="https://example.com" target="_blank" rel="noreferrer noopener"
-            >Example</a
+            Example
+          </a>
+          <a
+            href="https://example.com"
+            target="_blank"
+            rel="noreferrer noopener"
           >
-          <a href="/relative-path" target="_blank">Relative Safe 1</a>
-          <a href="/another-relative-path" target="_blank">Relative Safe 2</a>
+            Example
+          </a>
+          <a href="/relative-path" target="_blank">
+            Relative Safe 1
+          </a>
+          <a href="/another-relative-path" target="_blank">
+            Relative Safe 2
+          </a>
         </div>
       </div>
     |};
@@ -254,8 +281,10 @@ let%expect_test "button without type or invalid type" =
   test
     {%html|
       <div>
-        <button type="butno" on_click=%{on_click}>Hello!</button>
-        <button on_click=%{on_click}>Hello!</button>
+        <button type="butno" on_click_js_of_ocaml=%{on_click}>
+          Hello!
+        </button>
+        <button on_click_js_of_ocaml=%{on_click}>Hello!</button>
       </div>
     |};
   [%expect
@@ -282,7 +311,9 @@ let%expect_test "clickable role without tabindex" =
     {%html|
       <div>
         <div role="button">Hello!</div>
-        <div role="button" tabindex=%{0}>Hello!</div>
+        <div role="button" tabindex=%{0}>
+          Hello!
+        </div>
       </div>
     |};
   [%expect
@@ -310,26 +341,35 @@ let%expect_test "bunch of errors" =
       <div>
         <div>
           #{" Hi! "}
-          <div on_click=%{on_click} id="best_id">
+          <div on_click_js_of_ocaml=%{on_click} id="best_id">
             #{" Hello! "}
             <div id="best_id">#{"Hello!"}</div>
           </div>
-          <a href="http://example.com">#{"Link"}</a>#{" More text "}
-          <div on_click=%{on_click}>#{"Hello!"}</div>
+          <a href="http://example.com">#{"Link"}</a>
+          #{" More text "}
+          <div on_click_js_of_ocaml=%{on_click}>#{"Hello!"}</div>
           #{" Bye... "}
         </div>
         <div tabindex=%{2} %{Vdom.Attr.create "onclick" ""}></div>
-        <span id=" id1 id2 id3 id4">#{"Hello!"}</span
-        ><a href="http://example.com" id="best_id">#{"Link"}</a
-        >#{" Wow, this is bad code... "}
+        <span id=" id1 id2 id3 id4">#{"Hello!"}</span>
+        <a href="http://example.com" id="best_id">
+          #{"Link"}
+        </a>
+        #{" Wow, this is bad code... "}
         <div>
-          <%{Vdom.Node.div ~key:"key1"}>#{"#1"}</><%{Vdom.Node.div ~key:"key2"}>#{"#2"}</><%{Vdom.Node.div ~key:"key3"}>#{"#3"}</><%{Vdom.Node.div ~key:"key1"}
-            >#{"#1"}</>
+          <%{Vdom.Node.div ~key:"key1"}>#{"#1"}</>
+          <%{Vdom.Node.div ~key:"key2"}>#{"#2"}</>
+          <%{Vdom.Node.div ~key:"key3"}>#{"#3"}</>
+          <%{Vdom.Node.div ~key:"key1"}>#{"#1"}</>
         </div>
-        <a href="mailto://example.com" target="_blank">#{"Example"}</a>
+        <a href="mailto://example.com" target="_blank">
+          #{"Example"}
+        </a>
         <div>
-          <button type="butno" on_click=%{on_click}>#{"Hello!"}</button
-          ><button on_click=%{on_click}>#{"Hello!"}</button>
+          <button type="butno" on_click_js_of_ocaml=%{on_click}>
+            #{"Hello!"}
+          </button>
+          <button on_click_js_of_ocaml=%{on_click}>#{"Hello!"}</button>
           <div role="button">#{"Hello!"}</div>
         </div>
       </div>

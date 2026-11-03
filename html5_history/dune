@@ -2,5 +2,5 @@
  (name html5_history)
  (public_name virtual_dom.html5_history)
  (preprocess
-  (pps js_of_ocaml-ppx ppx_jane))
+  (pps js_of_ocaml-ppx ppx_jane -compare-require-explicit-locality))
  (libraries base64 core_kernel.bus core js_of_ocaml uri))

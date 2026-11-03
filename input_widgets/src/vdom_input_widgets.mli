@@ -27,12 +27,12 @@ module Validated : sig
      field that is parsed as ['a], but retains any unparsable value, and also remembers
      last parsed value.
   *)
-  type 'a t [@@deriving equal, sexp, bin_io, compare]
+  type 'a t [@@deriving equal ~localize, sexp, bin_io, compare ~localize]
 
   (** The [update] type is provided when a user changes the input in an entry. It cannot
       be used on its own, but it can be applied to an existing [t] to access the new
       current or last values. *)
-  type 'a update [@@deriving equal, sexp, bin_io, compare]
+  type 'a update [@@deriving equal ~localize, sexp, bin_io, compare ~localize]
 
   (** [initial_empty] is a special value that, when provided to an [Entry.validate]
       widget, will reset the contents regardless of whether the user has focus or not. *)

@@ -1,3 +1,5 @@
+@@ portable
+
 (** A set of functions to generate css declaration lists. This library can be used to
     programmatically produce strings suitable for the HTML style attribute, e.g.
     style="display:flex;background-color:red". *)
@@ -14,7 +16,8 @@ type 'a css_global_values =
 
 module Color : sig
   module RGBA : sig
-    type t [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
+    type t : immutable_data
+    [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
 
     (** [create ~r ~g ~b ~a] creates a color that corresponds to rgba([r],[g],[b],[a])
 
@@ -35,7 +38,8 @@ module Color : sig
   end
 
   module HSLA : sig
-    type t [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
+    type t : immutable_data
+    [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
 
     (** [create ~h ~s ~l ~a] creates a color that corresponds to hsla([h],[s],[l],[a])
 
@@ -57,7 +61,8 @@ module Color : sig
   end
 
   module LCHA : sig
-    type t [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
+    type t : immutable_data
+    [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
 
     (** [create ~l ~c ~h ~a] creates a color that corresponds to lch([l], [c], [h], [a]).
 
@@ -78,7 +83,8 @@ module Color : sig
   end
 
   module OKLCHA : sig
-    type t [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
+    type t : immutable_data
+    [@@deriving sexp, bin_io, compare ~localize, equal ~localize, sexp_grammar]
 
     (** [create ~l ~c ~h ~a] creates a color that corresponds to oklch([l], [c], [h],
         [a]).
@@ -231,7 +237,8 @@ module Auto_or_length : sig
   val to_string_css : t -> string
 end
 
-type t : immutable_data [@@deriving sexp, compare ~localize, equal ~localize, bin_io]
+type t : immutable_data
+[@@deriving sexp, compare ~localize, equal ~localize, hash, bin_io]
 
 (** Create a single property, value pair (a declaration in CSS parlance). The value must
     be a valid CSS literal. We do run a simple CSS parser on the value to validate this
@@ -659,7 +666,7 @@ module Stable : sig
   module V1 : sig
     type nonrec t : immutable_data = t
     [@@deriving
-      sexp, compare ~localize, equal ~localize, bin_io, stable_witness, sexp_grammar]
+      sexp, compare ~localize, equal ~localize, hash, bin_io, stable_witness, sexp_grammar]
   end
 end
 
@@ -669,9 +676,10 @@ module Expert : sig
       mistake. However, it also incurs a heavy cost and should be avoided in tight loops.
       [should_validate] allows the programmer to disable css value validation when
       necessary. *)
-  val should_validate : bool ref
+  val should_validate : bool Atomic.t
 end
 
 module Private : sig
-  val float_to_string_with_fixed : (int -> float -> string) ref
+  val float_to_string_with_fixed : int -> float -> string
+  val set_float_to_string_with_fixed : (int -> float -> string) @ portable -> unit
 end

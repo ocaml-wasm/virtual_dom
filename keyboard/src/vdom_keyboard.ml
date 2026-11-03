@@ -9,7 +9,7 @@ let with_keyboard_handler node keyboard_handler =
   let open Virtual_dom.Vdom in
   Node.div
     ~attrs:
-      [ Attr.on_keydown (fun event ->
+      [ Attr.on_keydown_js_of_ocaml (fun event ->
           Keyboard_event_handler.handle_or_ignore_event keyboard_handler event)
       ]
     [ node ]

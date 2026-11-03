@@ -135,10 +135,6 @@ val alt : here:[%call_pos] -> string -> t
 val src : here:[%call_pos] -> string -> t
 val open_ : t
 val start : here:[%call_pos] -> int -> t
-val on_focus : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
-val on_blur : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
-val on_focusin : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
-val on_focusout : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
 
 module Unmerged_warning_mode : sig
   (** Controls whether [to_raw] should print warning messages when one attribute overrides
@@ -162,15 +158,19 @@ module Unmerged_warning_mode : sig
 end
 
 val to_raw : t -> Raw.Attrs.t
+val on_focus : (Browser_types.focus_event Js.t -> unit Effect.t) -> t
+val on_blur : (Browser_types.focus_event Js.t -> unit Effect.t) -> t
+val on_focusin : (Browser_types.focus_event Js.t -> unit Effect.t) -> t
+val on_focusout : (Browser_types.focus_event Js.t -> unit Effect.t) -> t
 
 (** [on_input] fires every time the input changes, i.e., whenever a key is pressed in the
     input field. The current contents are returned as an OCaml string as a convenience *)
-val on_input : (Dom_html.event Js.t -> string -> unit Effect.t) -> t
+val on_input : (Browser_types.input_event Js.t -> string -> unit Effect.t) -> t
 
 (** [on_change] fires when the input is complete, i.e., when enter is pressed in the input
     field or the input field loses focus. The current contents are returned as an OCaml
     string as a convenience *)
-val on_change : (Dom_html.event Js.t -> string -> unit Effect.t) -> t
+val on_change : (Browser_types.event Js.t -> string -> unit Effect.t) -> t
 
 (** [on_file_input] is like [on_input] but for file picker input elements (i.e.
     [type=file]). Instead of passing the value of the input as a string, the list of
@@ -178,52 +178,129 @@ val on_change : (Dom_html.event Js.t -> string -> unit Effect.t) -> t
 
     See Vdom_input_widgets.File_select, or, if you are a bonsai user,
     Bonsai_web_form.Elements.File_select, for a convenient API that wraps this. *)
-val on_file_input : (Dom_html.event Js.t -> File.fileList Js.t -> unit Effect.t) -> t
+val on_file_input
+  :  (Browser_types.event Js.t -> Browser_types.file_list Js.t option -> unit Effect.t)
+  -> t
 
-val on_cancel : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_click : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_toggle : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_close : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_contextmenu : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_double_click : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_drag : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_dragstart : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_dragend : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_dragenter : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_dragleave : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_dragover : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_drop : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
-val on_mousemove : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_mouseup : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_mousedown : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_mouseenter : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_mouseleave : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_mouseover : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_mouseout : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
-val on_keyup : (Dom_html.keyboardEvent Js.t -> unit Effect.t) -> t
-val on_keypress : (Dom_html.keyboardEvent Js.t -> unit Effect.t) -> t
-val on_keydown : (Dom_html.keyboardEvent Js.t -> unit Effect.t) -> t
-val on_scroll : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_load : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_error : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_submit : (Dom_html.submitEvent Js.t -> unit Effect.t) -> t
-val on_pointerdown : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
-val on_pointerup : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
-val on_pointermove : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
-val on_pointerleave : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
-val on_pointerenter : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
-val on_mousewheel : (Dom_html.mousewheelEvent Js.t -> unit Effect.t) -> t
-val on_wheel : (Dom_html.wheelEvent Js.t -> unit Effect.t) -> t
-val on_copy : (Dom_html.clipboardEvent Js.t -> unit Effect.t) -> t
-val on_cut : (Dom_html.clipboardEvent Js.t -> unit Effect.t) -> t
-val on_paste : (Dom_html.clipboardEvent Js.t -> unit Effect.t) -> t
-val on_reset : (Dom_html.event Js.t -> unit Effect.t) -> t
-val on_animationend : (Dom_html.animationEvent Js.t -> unit Effect.t) -> t
-val on_auxclick : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_cancel : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_click : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_toggle : (Browser_types.toggle_event Js.t -> unit Effect.t) -> t
+val on_close : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_contextmenu : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_double_click : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_drag : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_dragstart : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_dragend : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_dragenter : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_dragleave : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_dragover : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_drop : (Browser_types.drag_event Js.t -> unit Effect.t) -> t
+val on_mousemove : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_mouseup : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_mousedown : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_mouseenter : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_mouseleave : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_mouseover : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_mouseout : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+val on_keyup : (Browser_types.keyboard_event Js.t -> unit Effect.t) -> t
+val on_keypress : (Browser_types.keyboard_event Js.t -> unit Effect.t) -> t
+val on_keydown : (Browser_types.keyboard_event Js.t -> unit Effect.t) -> t
+val on_scroll : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_load : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_error : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_submit : (Browser_types.submit_event Js.t -> unit Effect.t) -> t
+val on_pointerdown : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_pointerup : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_pointermove : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_pointercancel : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_pointerleave : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_pointerenter : (Browser_types.pointer_event Js.t -> unit Effect.t) -> t
+val on_mousewheel : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_wheel : (Browser_types.wheel_event Js.t -> unit Effect.t) -> t
+val on_copy : (Browser_types.clipboard_event Js.t -> unit Effect.t) -> t
+val on_cut : (Browser_types.clipboard_event Js.t -> unit Effect.t) -> t
+val on_paste : (Browser_types.clipboard_event Js.t -> unit Effect.t) -> t
+val on_reset : (Browser_types.event Js.t -> unit Effect.t) -> t
+val on_animationend : (Browser_types.animation_event Js.t -> unit Effect.t) -> t
+val on_auxclick : (Browser_types.mouse_event Js.t -> unit Effect.t) -> t
+
+(* Older Js_of_ocaml implementations of the handlers *)
+val on_focus_js_of_ocaml : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
+val on_blur_js_of_ocaml : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
+val on_focusin_js_of_ocaml : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
+val on_focusout_js_of_ocaml : (Dom_html.focusEvent Js.t -> unit Effect.t) -> t
+
+(** [on_input] fires every time the input changes, i.e., whenever a key is pressed in the
+    input field. The current contents are returned as an OCaml string as a convenience *)
+val on_input_js_of_ocaml : (Dom_html.event Js.t -> string -> unit Effect.t) -> t
+
+(** [on_change] fires when the input is complete, i.e., when enter is pressed in the input
+    field or the input field loses focus. The current contents are returned as an OCaml
+    string as a convenience *)
+val on_change_js_of_ocaml : (Dom_html.event Js.t -> string -> unit Effect.t) -> t
+
+(** [on_file_input] is like [on_input] but for file picker input elements (i.e.
+    [type=file]). Instead of passing the value of the input as a string, the list of
+    selected files is passed.
+
+    See Vdom_input_widgets.File_select, or, if you are a bonsai user,
+    Bonsai_web_ui_form.Elements.File_select, for a convenient API that wraps this. *)
+val on_file_input_js_of_ocaml
+  :  (Dom_html.event Js.t -> File.fileList Js.t -> unit Effect.t)
+  -> t
+
+val on_cancel_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_click_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_toggle_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_close_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_contextmenu_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_double_click_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_drag_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_dragstart_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_dragend_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_dragenter_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_dragleave_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_dragover_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_drop_js_of_ocaml : (Dom_html.dragEvent Js.t -> unit Effect.t) -> t
+val on_mousemove_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_mouseup_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_mousedown_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_mouseenter_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_mouseleave_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_mouseover_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_mouseout_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
+val on_keyup_js_of_ocaml : (Dom_html.keyboardEvent Js.t -> unit Effect.t) -> t
+val on_keypress_js_of_ocaml : (Dom_html.keyboardEvent Js.t -> unit Effect.t) -> t
+val on_keydown_js_of_ocaml : (Dom_html.keyboardEvent Js.t -> unit Effect.t) -> t
+val on_scroll_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_load_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_error_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_submit_js_of_ocaml : (Dom_html.submitEvent Js.t -> unit Effect.t) -> t
+val on_pointerdown_js_of_ocaml : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
+val on_pointerup_js_of_ocaml : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
+val on_pointermove_js_of_ocaml : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
+val on_pointercancel_js_of_ocaml : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
+val on_pointerleave_js_of_ocaml : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
+val on_pointerenter_js_of_ocaml : (Dom_html.pointerEvent Js.t -> unit Effect.t) -> t
+val on_mousewheel_js_of_ocaml : (Dom_html.mousewheelEvent Js.t -> unit Effect.t) -> t
+val on_wheel_js_of_ocaml : (Dom_html.wheelEvent Js.t -> unit Effect.t) -> t
+val on_copy_js_of_ocaml : (Dom_html.clipboardEvent Js.t -> unit Effect.t) -> t
+val on_cut_js_of_ocaml : (Dom_html.clipboardEvent Js.t -> unit Effect.t) -> t
+val on_paste_js_of_ocaml : (Dom_html.clipboardEvent Js.t -> unit Effect.t) -> t
+val on_reset_js_of_ocaml : (Dom_html.event Js.t -> unit Effect.t) -> t
+val on_animationend_js_of_ocaml : (Dom_html.animationEvent Js.t -> unit Effect.t) -> t
+val on_auxclick_js_of_ocaml : (Dom_html.mouseEvent Js.t -> unit Effect.t) -> t
 
 (** Sets a css named variable on the element. The "--" prefix is added by this function:
     [css_var ~name:"foo" "red"] is equivalent to the css [--foo: red]. *)
 val css_var : name:string -> string -> t
+
+(** Like [css_var] but doesn't prepend [--]:
+
+    [css_var' ~name:"--foo" "red"] is equivalent to the css [--foo: red].
+
+    If you forget to add the [--] to the front of the string this will return an error *)
+val css_var' : name:string -> string -> t Or_error.t
 
 (** For ppx use only *)
 val __css_vars_no_kebabs : (string * string) list -> t

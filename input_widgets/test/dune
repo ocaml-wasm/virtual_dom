@@ -2,4 +2,4 @@
  (name vdom_input_widgets_test)
  (libraries core vdom_input_widgets virtual_dom virtual_dom_test_helpers)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane -compare-require-explicit-locality)))

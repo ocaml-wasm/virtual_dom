@@ -118,6 +118,31 @@ module Widget = struct
   include Raw.Widget
 
   module type S = sig
+    type dom = private #Browser_types.html_element
+
+    module Input : sig
+      type t [@@deriving sexp_of]
+    end
+
+    module State : sig
+      type t [@@deriving sexp_of]
+    end
+
+    val name : string
+    val create : Input.t -> State.t * dom Js.t
+
+    val update
+      :  prev_input:Input.t
+      -> input:Input.t
+      -> state:State.t
+      -> element:dom Js.t
+      -> State.t * dom Js.t
+
+    val destroy : prev_input:Input.t -> state:State.t -> element:dom Js.t -> unit
+    val to_vdom_for_testing : [ `Custom of Input.t -> vdom_node | `Sexp_of_input ]
+  end
+
+  module type S_js_of_ocaml = sig
     type dom = private #Dom_html.element
 
     module Input : sig
@@ -142,6 +167,48 @@ module Widget = struct
     val to_vdom_for_testing : [ `Custom of Input.t -> vdom_node | `Sexp_of_input ]
   end
 
+  let of_module_js_of_ocaml
+    (type input)
+    (module M : S_js_of_ocaml with type Input.t = input)
+    =
+    let module State = struct
+      type t =
+        { input : M.Input.t
+        ; state : M.State.t
+        }
+      [@@deriving sexp_of]
+    end
+    in
+    let sexp_of_dom : M.dom Js.t -> Sexp.t = fun _ -> Sexp.Atom "<opaque>" in
+    let id = Type_equal.Id.create ~name:M.name [%sexp_of: State.t * dom * _] in
+    Base.Staged.stage (fun input ->
+      let vdom_for_testing =
+        lazy
+          (t_to_js
+             (match M.to_vdom_for_testing with
+              | `Custom f -> f input
+              | `Sexp_of_input ->
+                let children =
+                  match M.Input.sexp_of_t input with
+                  | Atom "<opaque>" -> []
+                  | other -> [ text (Sexp.to_string_hum other) ]
+                in
+                create_element (M.name ^ "-widget") children))
+      in
+      create_js_of_ocaml
+        ~id
+        ~vdom_for_testing
+        ~init:(fun () ->
+          let state, element = M.create input in
+          { input; state }, element)
+        ~update:(fun { State.input = prev_input; state } element ->
+          let state, element = M.update ~prev_input ~input ~state ~element in
+          { input; state }, element)
+        ~destroy:(fun { State.input = prev_input; state } element ->
+          M.destroy ~prev_input ~state ~element)
+        ())
+  ;;
+
   let of_module (type input) (module M : S with type Input.t = input) =
     let module State = struct
       type t =
@@ -152,7 +219,7 @@ module Widget = struct
     end
     in
     let sexp_of_dom : M.dom Js.t -> Sexp.t = fun _ -> Sexp.Atom "<opaque>" in
-    let id = Type_equal.Id.create ~name:M.name [%sexp_of: State.t * dom] in
+    let id = Type_equal.Id.create ~name:M.name [%sexp_of: State.t * _ * dom] in
     Base.Staged.stage (fun input ->
       let vdom_for_testing =
         lazy
@@ -189,7 +256,17 @@ let element_expert kind ~tag ?key attrs children =
   { kind; tag; key; attrs; raw_attrs; children }
 ;;
 
-let widget ?vdom_for_testing ?destroy ?update ~id ~init () =
+let widget
+  :  ?vdom_for_testing:t Lazy.t -> ?destroy:('s -> 'browser Js.t -> unit)
+  -> ?update:('s -> 'browser Js.t -> 's * 'browser Js.t)
+  -> id:
+       ('s
+       * (#Dom_html.element as 'dom_html) Js.t
+       * (#Browser_types.html_element as 'browser) Js.t)
+         Type_equal.Id.t
+  -> init:(unit -> 's * 'browser Js.t) -> unit -> t
+  =
+  fun ?vdom_for_testing ?destroy ?update ~id ~init () ->
   let vdom_for_testing =
     lazy
       (match vdom_for_testing with
@@ -223,7 +300,8 @@ let none =
     ~update:(fun () e -> (), e)
     ~id
     ~init:(fun () ->
-      let comment = Js_of_ocaml.Dom_html.document##createComment comment_content in
+      let window = Browser_expert.Global.window_exn () in
+      let comment = window##.document##createComment ~data:comment_content in
       (* The widget signature wants to produce an element node (which almost always makes
          sense), but here we have a coment node. The underlying virtual dom library is ok
          with all node types, so it's safe to lie here. *)
@@ -240,6 +318,11 @@ let of_opt = function
 let fragment children = Fragment children
 let textf format = Printf.ksprintf text format
 
+let widget_of_module_js_of_ocaml m =
+  let f = Base.Staged.unstage (Widget.of_module_js_of_ocaml m) in
+  Base.Staged.stage (fun i -> Widget (f i))
+;;
+
 let widget_of_module m =
   let f = Base.Staged.unstage (Widget.of_module m) in
   Base.Staged.stage (fun i -> Widget (f i))
@@ -247,6 +330,7 @@ let widget_of_module m =
 
 let to_raw = t_to_js
 let to_dom t = Raw.Node.to_dom (to_raw t)
+let to_dom_js_of_ocaml t = Raw.Node.to_dom_js_of_ocaml (to_raw t)
 
 module Inner_html = struct
   let update'
@@ -277,7 +361,7 @@ module Inner_html = struct
   let widget ~name create =
     let id =
       (* stage the id generation *)
-      Type_equal.Id.create ~name (fun ((content, _, _), _) -> Sexp.Atom content)
+      Type_equal.Id.create ~name (fun ((content, _, _), _, _) -> Sexp.Atom content)
     in
     Staged.stage
       (fun
@@ -433,6 +517,29 @@ let sexp_for_debugging ?indent sexp =
   sexp |> Sexp.to_string_hum ?indent |> text |> List.return |> pre ~attrs:[]
 ;;
 
+let widget = widget
+
+(** Export widget based on [dom_html] to maintain back-compat *)
+let widget_js_of_ocaml
+  :  ?vdom_for_testing:t Lazy.t -> ?destroy:('s -> 'dom_html Js.t -> unit)
+  -> ?update:('s -> 'dom_html Js.t -> 's * 'dom_html Js.t)
+  -> id:
+       ('s
+       * (#Dom_html.element as 'dom_html) Js.t
+       * (#Browser_types.html_element as 'browser) Js.t)
+         Type_equal.Id.t
+  -> init:(unit -> 's * 'dom_html Js.t) -> unit -> t
+  =
+  fun ?vdom_for_testing ?destroy ?update ~id ~init () ->
+  let vdom_for_testing =
+    lazy
+      (match vdom_for_testing with
+       | Some t -> t_to_js (Lazy.force t)
+       | None -> t_to_js (create (Type_equal.Id.name id ^ "-widget") []))
+  in
+  Widget (Widget.create_js_of_ocaml ~vdom_for_testing ?destroy ?update ~id ~init ())
+;;
+
 module Patch = struct
   type t = Raw.Patch.t
 
@@ -441,6 +548,7 @@ module Patch = struct
   ;;
 
   let apply t elt = Raw.Patch.apply elt t
+  let apply_js_of_ocaml t elt = Raw.Patch.apply_js_of_ocaml elt t
   let is_empty t = Raw.Patch.is_empty t
 end
 

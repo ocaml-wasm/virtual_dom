@@ -49,7 +49,7 @@ let terminal =
       div##terminal (Js.wrap_callback interpret) options;
       (), div##get 0
     in
-    Node.widget ~init ~id ()
+    Node.widget_js_of_ocaml ~init ~id ()
 ;;
 
 let view count = Node.div [ Node.div [ Node.text (Int.to_string count) ]; terminal () ]
@@ -59,7 +59,7 @@ let () =
   := Dom.handler (fun _ ->
        let count = ref 0 in
        let vdom = ref (view !count) in
-       let elt = Node.to_dom !vdom in
+       let elt = Node.to_dom_js_of_ocaml !vdom in
        Dom.appendChild Dom_html.document##.body elt;
        Dom_html.window##setInterval
          (Js.wrap_callback (fun _ ->
@@ -67,7 +67,8 @@ let () =
             let current = view !count in
             let patch = Node.Patch.create ~previous:!vdom ~current in
             vdom := current;
-            Node.Patch.apply patch elt |> (ignore : Dom_html.element Js.t -> unit)))
+            Node.Patch.apply_js_of_ocaml patch elt
+            |> (ignore : Dom_html.element Js.t -> unit)))
          (Js.float 30.)
        |> (ignore : Dom_html.interval_id -> unit);
        Js._false)

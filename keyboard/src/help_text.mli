@@ -53,7 +53,7 @@ module Command : sig
   val view : t -> View_spec.t -> Format.t -> Vdom.Node.t
 end
 
-type t [@@deriving sexp, compare]
+type t [@@deriving sexp, compare ~localize]
 
 val empty : t
 val is_empty : t -> bool

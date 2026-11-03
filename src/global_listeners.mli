@@ -22,50 +22,138 @@ module Phase : sig
     | Bubbling
 end
 
-(** Mouse-event handlers *)
+(** Mouse-event handlers with browser types *)
 
 val mousedown
   :  phase:Phase.t
-  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> f:(Browser_types.mouse_event Js.t -> unit Ui_effect.t)
   -> Attr.t
 
-val mouseup : phase:Phase.t -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t) -> Attr.t
+val mouseup
+  :  phase:Phase.t
+  -> f:(Browser_types.mouse_event Js.t -> unit Ui_effect.t)
+  -> Attr.t
 
 val mousemove
   :  phase:Phase.t
-  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> f:(Browser_types.mouse_event Js.t -> unit Ui_effect.t)
   -> Attr.t
 
-val click : phase:Phase.t -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t) -> Attr.t
+val click : phase:Phase.t -> f:(Browser_types.event Js.t -> unit Ui_effect.t) -> Attr.t
 
 (* Focus event handlers *)
-val blur : phase:Phase.t -> f:(Dom_html.focusEvent Js.t -> unit Ui_effect.t) -> Attr.t
-val focusin : phase:Phase.t -> f:(Dom_html.focusEvent Js.t -> unit Ui_effect.t) -> Attr.t
-val focusout : phase:Phase.t -> f:(Dom_html.focusEvent Js.t -> unit Ui_effect.t) -> Attr.t
+val blur
+  :  phase:Phase.t
+  -> f:(Browser_types.focus_event Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val focusin
+  :  phase:Phase.t
+  -> f:(Browser_types.focus_event Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val focusout
+  :  phase:Phase.t
+  -> f:(Browser_types.focus_event Js.t -> unit Ui_effect.t)
+  -> Attr.t
 
 val contextmenu
   :  phase:Phase.t
-  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> f:(Browser_types.pointer_event Js.t -> unit Ui_effect.t)
   -> Attr.t
 
 (** Keyboard-event handlers *)
 
 val keydown
   :  phase:Phase.t
-  -> f:(Dom_html.keyboardEvent Js.t -> unit Ui_effect.t)
+  -> f:(Browser_types.keyboard_event Js.t -> unit Ui_effect.t)
   -> Attr.t
 
-val keyup : phase:Phase.t -> f:(Dom_html.keyboardEvent Js.t -> unit Ui_effect.t) -> Attr.t
+val keyup
+  :  phase:Phase.t
+  -> f:(Browser_types.keyboard_event Js.t -> unit Ui_effect.t)
+  -> Attr.t
 
 (** Other event handlers *)
 val visibilitychange
+  :  phase:Phase.t
+  -> f:(Browser_types.event Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+(* Chrome may not allow Javascript to run after a user requests a tab close, so an effect
+   passed into `Custom_best_effort may or may not execute to completion *)
+val beforeunload
+  :  phase:Phase.t
+  -> f:
+       (Browser_types.before_unload_event Js.t
+        -> [ `Show_warning | `Do_nothing | `Custom_best_effort of unit Ui_effect.t ]
+             Ui_effect.t)
+  -> Attr.t
+
+(** Mouse-event handlers *)
+
+val mousedown_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val mouseup_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val mousemove_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val click_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+(* Focus event handlers *)
+val blur_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.focusEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val focusin_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.focusEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val focusout_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.focusEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val contextmenu_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.mouseEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+(** Keyboard-event handlers *)
+
+val keydown_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.keyboardEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+val keyup_js_of_ocaml
+  :  phase:Phase.t
+  -> f:(Dom_html.keyboardEvent Js.t -> unit Ui_effect.t)
+  -> Attr.t
+
+(** Other event handlers *)
+val visibilitychange_js_of_ocaml
   :  phase:Phase.t
   -> f:(Dom_html.event Js.t -> unit Ui_effect.t)
   -> Attr.t
 
 (* Chrome may not allow Javascript to run after a user requests a tab close, so an effect
    passed into `Custom_best_effort may or may not execute to completion *)
-val beforeunload
+val beforeunload_js_of_ocaml
   :  phase:Phase.t
   -> f:
        (Dom_html.event Js.t
@@ -86,19 +174,50 @@ module For_testing : sig
     :  ('a -> unit Ui_effect.t) t
     -> ('a -> unit Ui_effect.t)
 
-  val mousedown_type_id : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
-  val mouseup_type_id : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
-  val mousemove_type_id : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
-  val click_type_id : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+  val mousedown_type_id
+    : (Browser_types.mouse_event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val mouseup_type_id
+    : (Browser_types.mouse_event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val mousemove_type_id
+    : (Browser_types.mouse_event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val click_type_id : (Browser_types.event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
 
   val contextmenu_type_id
-    : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+    : (Browser_types.pointer_event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
 
   val keydown_type_id
-    : (Dom_html.keyboardEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+    : (Browser_types.keyboard_event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
 
   val visibilitychange_type_id
+    : (Browser_types.event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val beforeunload_type_id
+    : (Browser_types.before_unload_event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val mousedown_type_id_js_of_ocaml
+    : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val mouseup_type_id_js_of_ocaml
+    : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val mousemove_type_id_js_of_ocaml
+    : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val click_type_id_js_of_ocaml
+    : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val contextmenu_type_id_js_of_ocaml
+    : (Dom_html.mouseEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val keydown_type_id_js_of_ocaml
+    : (Dom_html.keyboardEvent Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+
+  val visibilitychange_type_id_js_of_ocaml
     : (Dom_html.event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
 
-  val beforeunload_type_id : (Dom_html.event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
+  val beforeunload_type_id_js_of_ocaml
+    : (Dom_html.event Js.t -> unit Ui_effect.t) t Type_equal.Id.t
 end

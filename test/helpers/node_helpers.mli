@@ -29,12 +29,18 @@ val select : t -> selector:string -> t list
 val select_first : t -> selector:string -> t option
 val select_first_exn : t -> selector:string -> t
 
+(** @param max_width
+      Elements whose opening tag doesn't fit within [max_width] columns (counting
+      indentation) have their attributes printed one per line. Text children are collapsed
+      onto the same line when they fit within 80% of [max_width].
+      - Default: [100] *)
 val to_string_html
   :  ?filter_printed_attributes:(key:string -> data:string -> bool)
   -> ?censor_paths:bool
   -> ?censor_hash:bool
   -> ?path_censoring_message:string
   -> ?hash_censoring_message:string
+  -> ?max_width:int
   -> t
   -> string
 

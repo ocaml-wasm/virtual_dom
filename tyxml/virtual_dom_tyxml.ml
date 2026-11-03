@@ -38,7 +38,7 @@ module Xml = struct
 
   let attr_ev name cvt_to_vdom_event =
     let f e =
-      Effect.Expert.handle e (cvt_to_vdom_event e) ~on_exn:(fun exn ->
+      Effect.Expert.handle_js_of_ocaml e (cvt_to_vdom_event e) ~on_exn:(fun exn ->
         Base.Exn.reraise exn "Unhandled exception raised in effect");
       Js._true
     in

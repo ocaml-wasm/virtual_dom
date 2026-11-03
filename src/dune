@@ -2,11 +2,18 @@
  (name virtual_dom)
  (public_name virtual_dom)
  (preprocess
-  (pps js_of_ocaml-ppx ppx_jane))
+  (pps js_of_ocaml-ppx ppx_jane -compare-require-explicit-locality))
  (js_of_ocaml
   (javascript_files ../lib/virtualdom.compiled.pretty.js ./thunk.js
     ./hooks.js))
- (libraries core css_gen js_of_ocaml jsoo_weak_collections sexplib ui_effect)
+ (libraries am_running_how_js browser.expert browser.extra browser.js_types
+   browser.types core css_values.data_type css_gen js_of_ocaml
+   jsoo_weak_collections sexplib ui_effect)
  (wasm_of_ocaml
   (javascript_files ../lib/virtualdom.compiled.pretty.js ./thunk.js
     ./hooks.js)))
+
+(env
+ (_
+  (env-vars
+   (OCAMLPARAM w=-46,keywords=5.2,_))))

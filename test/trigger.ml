@@ -6,7 +6,7 @@ let%expect_test "empty div with triggered callback" =
     Node_helpers.unsafe_convert_exn
       (Node.div
          ~attrs:
-           [ Attr.on_click (fun _ ->
+           [ Attr.on_click_js_of_ocaml (fun _ ->
                print_endline "inside handler";
                Effect.Ignore)
            ]
@@ -21,7 +21,7 @@ let%expect_test "empty div with triggered callback (failing)" =
     Node_helpers.unsafe_convert_exn
       (Node.div
          ~attrs:
-           [ Attr.on_click (fun e ->
+           [ Attr.on_click_js_of_ocaml (fun e ->
                print_s [%message (Js_of_ocaml.Js.float_of_number e##.screenX : float)];
                Effect.Ignore)
            ]
@@ -50,7 +50,7 @@ let%expect_test "empty input with on_change (success!)" =
     Node_helpers.unsafe_convert_exn
       (Node.input
          ~attrs:
-           [ Attr.on_change (fun _e s ->
+           [ Attr.on_change_js_of_ocaml (fun _e s ->
                print_endline s;
                Effect.Ignore)
            ]
@@ -72,7 +72,7 @@ let%expect_test "empty input with on_change (failing: forgot tagName!)" =
     Node_helpers.unsafe_convert_exn
       (Node.input
          ~attrs:
-           [ Attr.on_change (fun _e s ->
+           [ Attr.on_change_js_of_ocaml (fun _e s ->
                print_endline s;
                Effect.Ignore)
            ]
@@ -116,7 +116,7 @@ module Print_string_event = Ui_effect.Define (struct
     let handle value ~on_exn:_ = printf "%s " value
   end)
 
-module H = Attr.Hooks.Make (struct
+module H = Attr.Hooks.Make_js_of_ocaml (struct
     module Input = struct
       type t = int -> unit Ui_effect.t [@@deriving sexp]
 
@@ -135,7 +135,7 @@ module H = Attr.Hooks.Make (struct
     let destroy _input _state _element = ()
   end)
 
-module String_h = Attr.Hooks.Make (struct
+module String_h = Attr.Hooks.Make_js_of_ocaml (struct
     module Input = struct
       type t = string -> unit Ui_effect.t [@@deriving sexp]
 
@@ -250,7 +250,8 @@ let%expect_test "fake event handler for on_click" =
     Node.div
       ~attrs:
         [ Attr.(
-            many_without_merge [ id "x"; on_click (fun _ -> Print_int_event.inject 5) ])
+            many_without_merge
+              [ id "x"; on_click_js_of_ocaml (fun _ -> Print_int_event.inject 5) ])
         ]
       []
   in
@@ -280,7 +281,11 @@ let checkbox_event_handler e =
 let%expect_test "set checkbox with on_click" =
   let node =
     Node.input
-      ~attrs:[ Attr.id "x"; Attr.type_ "checkbox"; Attr.on_click checkbox_event_handler ]
+      ~attrs:
+        [ Attr.id "x"
+        ; Attr.type_ "checkbox"
+        ; Attr.on_click_js_of_ocaml checkbox_event_handler
+        ]
       ()
   in
   let run ~checked ~shift_key_down =
@@ -308,7 +313,7 @@ let%expect_test "set checkbox with onchange" =
       ~attrs:
         [ Attr.id "x"
         ; Attr.type_ "checkbox"
-        ; Attr.on_change (fun e _ -> checkbox_event_handler e)
+        ; Attr.on_change_js_of_ocaml (fun e _ -> checkbox_event_handler e)
         ]
       ()
   in
@@ -338,8 +343,8 @@ let%expect_test "not merged" =
         [ Attr.(
             many_without_merge
               [ id "x"
-              ; on_click (fun _ -> Print_int_event.inject 5)
-              ; on_click (fun _ -> Print_int_event.inject 6)
+              ; on_click_js_of_ocaml (fun _ -> Print_int_event.inject 5)
+              ; on_click_js_of_ocaml (fun _ -> Print_int_event.inject 6)
               ])
         ]
       []
@@ -363,8 +368,8 @@ let%expect_test "merged" =
             many_without_merge
               [ id "x"
               ; many
-                  [ on_click (fun _ -> Print_int_event.inject 5)
-                  ; on_click (fun _ -> Print_int_event.inject 6)
+                  [ on_click_js_of_ocaml (fun _ -> Print_int_event.inject 5)
+                  ; on_click_js_of_ocaml (fun _ -> Print_int_event.inject 6)
                   ]
               ])
         ]
@@ -383,15 +388,17 @@ let%expect_test "add class in the middle of a [many]" =
       ~attrs:
         ([ Attr.id "x"
          ; Attr.class_ "abc"
-         ; Attr.on_click (fun _ -> Print_int_event.inject 1)
+         ; Attr.on_click_js_of_ocaml (fun _ -> Print_int_event.inject 1)
          ]
          @ Attr.Multi.add_class
              [ Attr.class_ "def"
-             ; Attr.on_click (fun _ -> Print_int_event.inject 2)
-             ; Attr.on_click (fun _ -> Print_int_event.inject 3)
+             ; Attr.on_click_js_of_ocaml (fun _ -> Print_int_event.inject 2)
+             ; Attr.on_click_js_of_ocaml (fun _ -> Print_int_event.inject 3)
              ]
              "ghi"
-         @ [ Attr.class_ "jkl"; Attr.on_click (fun _ -> Print_int_event.inject 4) ])
+         @ [ Attr.class_ "jkl"
+           ; Attr.on_click_js_of_ocaml (fun _ -> Print_int_event.inject 4)
+           ])
       []
   in
   node
@@ -413,7 +420,7 @@ let%expect_test "Regression: attributes and properties with the same name" =
             many_without_merge
               [ checked
               ; bool_property "checked" true
-              ; on_click (fun _ev -> Print_int_event.inject 1)
+              ; on_click_js_of_ocaml (fun _ev -> Print_int_event.inject 1)
               ; id "x"
               ])
         ]
@@ -429,14 +436,14 @@ let%expect_test "Regression: attributes and properties with the same name" =
 let%expect_test "trigger on widget vdom_for_testing" =
   let vdom_for_testing =
     let attr =
-      Attr.on_click (fun _ ->
+      Attr.on_click_js_of_ocaml (fun _ ->
         print_endline "inside handler";
         Effect.Ignore)
     in
     lazy (Node.div ~attrs:[ attr ] [])
   in
   let widget =
-    Node.widget
+    Node.widget_js_of_ocaml
       ~id:(Type_equal.Id.create ~name:"name_goes_here" [%sexp_of: opaque])
       ~vdom_for_testing
       ~init:(fun _ -> failwith "unreachable")

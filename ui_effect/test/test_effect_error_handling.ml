@@ -752,7 +752,8 @@ end
 module%test
   [@name
     "it's possible to propogate exns without raising from a call to [handle] to an \
-     enclosing call to [of_thunk'] and co., but not [of_thunk] and co."] _ =
+     enclosing call to [of_thunk'] and co., but not [of_thunk] and co."]
+  _ =
 struct
   let%expect_test "[handle] inside [of_thunk]" =
     let effect =

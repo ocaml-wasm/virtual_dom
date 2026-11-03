@@ -90,6 +90,19 @@ module Expert : sig
   val handle
     :  on_exn:(exn -> unit)
     -> ?on_further_exns:(exn -> unit)
+    -> #Browser_types.event Js.t
+    -> unit t
+    -> unit
+
+  (** We recommend using [handle] over this method
+
+      [handle_js_of_ocaml t] looks up the [Handler.handle_js_of_ocaml] function in the
+      table of [Define]d functions, unwraps the [Effect.t] back into its underlying
+      [Action.t], and applies the two. This is only intended for internal use by this
+      library, specifically by the attribute code. *)
+  val handle_js_of_ocaml
+    :  on_exn:(exn -> unit)
+    -> ?on_further_exns:(exn -> unit)
     -> #Dom_html.event Js.t
     -> unit t
     -> unit

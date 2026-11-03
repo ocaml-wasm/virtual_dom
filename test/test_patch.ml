@@ -16,7 +16,7 @@ let%test "non-empty patch fails" =
 ;;
 
 let%expect_test {|regression: elements with the same event handler produces a patch |} =
-  let attrs = [ Attr.on_click (fun _ -> Effect.Ignore) ] in
+  let attrs = [ Attr.on_click_js_of_ocaml (fun _ -> Effect.Ignore) ] in
   let previous = Node.div ~attrs [] in
   let current = Node.div ~attrs [] in
   let patch = Node.Patch.create ~previous ~current in

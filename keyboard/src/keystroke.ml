@@ -128,7 +128,8 @@ module Keyboard_code = struct
       | IntlBackslash
       | IntlYen
       | Pause
-    [@@deriving sexp, compare, bin_io, hash, enumerate, equal, sexp_grammar]
+    [@@deriving
+      sexp, compare ~localize, bin_io, hash, enumerate, equal ~localize, sexp_grammar]
   end
 
   include T
@@ -405,7 +406,7 @@ module T = struct
     ; shift : bool
     ; meta : bool
     }
-  [@@deriving sexp, compare, bin_io, hash, fields ~getters, sexp_grammar]
+  [@@deriving sexp, compare ~localize, bin_io, hash, fields ~getters, sexp_grammar]
 end
 
 include T

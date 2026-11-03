@@ -4,3 +4,8 @@
  (libraries base stdio)
  (preprocess
   (pps ppx_jane -compare-require-explicit-locality)))
+
+(env
+ (_
+  (env-vars
+   (OCAMLPARAM w=-46,keywords=5.2,_))))

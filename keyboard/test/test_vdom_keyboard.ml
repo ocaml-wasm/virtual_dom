@@ -136,3 +136,117 @@ let%expect_test "meta" =
   print_s [%message (Keyboard_event.meta via_bad_getmodifierstate : bool)];
   [%expect {| ("Keyboard_event.meta via_bad_getmodifierstate" false) |}]
 ;;
+
+module Condition = Keyboard_event_handler.Condition
+
+let event_targeting (target : Dom_html.element Js.t option) : Keyboard_event.t =
+  let target = Js.Opt.option target in
+  Obj.magic
+    (object%js
+       val target = target
+    end)
+;;
+
+let element ?(attrs = []) ?parent tag =
+  let element = Dom_html.document##createElement (Js.string tag) in
+  List.iter attrs ~f:(fun (name, value) ->
+    element##setAttribute (Js.string name) (Js.string value));
+  Option.iter parent ~f:(fun parent -> Dom.appendChild parent element);
+  element
+;;
+
+let print_editable_conditions ev =
+  print_s
+    [%message
+      (Condition.has_input_target ev : bool)
+        (Condition.has_contenteditable_target ev : bool)
+        (Condition.has_input_or_contenteditable_target ev : bool)]
+;;
+
+let%expect_test "editable target conditions" =
+  print_editable_conditions (event_targeting None);
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" false)
+     ("Condition.has_input_or_contenteditable_target ev" false))
+    |}];
+  print_editable_conditions (event_targeting (Some (element "input")));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" true)
+     ("Condition.has_contenteditable_target ev" false)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  print_editable_conditions (event_targeting (Some (element "textarea")));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" true)
+     ("Condition.has_contenteditable_target ev" false)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  let editable = element "div" ~attrs:[ "contenteditable", "true" ] in
+  print_editable_conditions (event_targeting (Some editable));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" true)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  print_editable_conditions
+    (event_targeting (Some (element "div" ~attrs:[ "contenteditable", "" ])));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" true)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  let nested = element "span" ~parent:(element "div" ~parent:editable) in
+  print_editable_conditions (event_targeting (Some nested));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" true)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  let read_only_widget =
+    element "div" ~attrs:[ "contenteditable", "false" ] ~parent:editable
+  in
+  print_editable_conditions (event_targeting (Some read_only_widget));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" true)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  print_editable_conditions
+    (event_targeting (Some (element "span" ~parent:read_only_widget)));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" true)
+     ("Condition.has_input_or_contenteditable_target ev" true))
+    |}];
+  print_editable_conditions
+    (event_targeting (Some (element "div" ~attrs:[ "contenteditable", "false" ])));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" false)
+     ("Condition.has_input_or_contenteditable_target ev" false))
+    |}];
+  print_editable_conditions (event_targeting (Some (element "div")));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" false)
+     ("Condition.has_input_or_contenteditable_target ev" false))
+    |}];
+  print_editable_conditions (event_targeting (Some (element "button")));
+  [%expect
+    {|
+    (("Condition.has_input_target ev" false)
+     ("Condition.has_contenteditable_target ev" false)
+     ("Condition.has_input_or_contenteditable_target ev" false))
+    |}]
+;;

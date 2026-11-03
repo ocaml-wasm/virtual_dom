@@ -21,11 +21,27 @@ module Target : sig
     | Element
 end
 
-module Make : functor
+module Make_js_of_ocaml : functor
     (Arg : sig
        type event = private #Dom_html.event
 
        val event_kind : event Js.t Dom.Event.typ
+       val target : Target.t
+     end)
+    -> sig
+  val create : Phase.t -> f:(Arg.event Js.t -> unit Ui_effect.t) -> Hooks.t
+
+  module For_testing : sig
+    val type_id
+      : (Arg.event Js.t -> unit Ui_effect.t) Capture_and_bubbling.t Type_equal.Id.t
+  end
+end
+
+module Make : functor
+    (Arg : sig
+       type event = private #Browser_types.event
+
+       val event_kind : Js.js_string Js.t
        val target : Target.t
      end)
     -> sig

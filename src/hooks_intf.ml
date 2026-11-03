@@ -22,11 +22,13 @@ module type S = sig
   module State : T
   module Input : Input
 
+  type html_element
+
   (** [init] is called the first time that this attribute is attached to a particular
       node. It is particularly responsible for producing a value of type [State.t]. The
       element that it is being attached to is not necessarily attached to the rest of the
       DOM tree. *)
-  val init : Input.t -> Dom_html.element Js.t -> State.t
+  val init : Input.t -> html_element Js.t -> State.t
 
   (** [on_mount] specifies what happens when the element is attached to the rest of the
       DOM tree.
@@ -43,8 +45,8 @@ module type S = sig
   val on_mount
     : [ `Do_nothing
       | `Schedule_immediately_after_this_dom_patch_completes of
-        Input.t -> State.t -> Dom_html.element Js.t -> unit
-      | `Schedule_animation_frame of Input.t -> State.t -> Dom_html.element Js.t -> unit
+        Input.t -> State.t -> html_element Js.t -> unit
+      | `Schedule_animation_frame of Input.t -> State.t -> html_element Js.t -> unit
       ]
 
   (** [update] is called when a previous attribute of the same kind existed on the vdom
@@ -57,13 +59,13 @@ module type S = sig
     :  old_input:Input.t
     -> new_input:Input.t
     -> State.t
-    -> Dom_html.element Js.t
+    -> html_element Js.t
     -> unit
 
   (** [destroy] is called when the previous vdom has this hook, but a newer vdom tree does
       not. The last input and state are passed in alongside the element that it used to be
       attached to. *)
-  val destroy : Input.t -> State.t -> Dom_html.element Js.t -> unit
+  val destroy : Input.t -> State.t -> html_element Js.t -> unit
 end
 
 module type Hooks = sig
@@ -75,7 +77,7 @@ module type Hooks = sig
   val combine : t -> t -> t
   val pack : t -> Js.Unsafe.any
 
-  module Make (S : S) : sig
+  module Make_js_of_ocaml (S : S with type html_element := Dom_html.element) : sig
     val create : S.Input.t -> t
 
     module For_testing : sig
@@ -86,7 +88,18 @@ module type Hooks = sig
     end
   end
 
-  val unsafe_create
+  module Make (S : S with type html_element := Browser_types.html_element) : sig
+    val create : S.Input.t -> t
+
+    module For_testing : sig
+      (** The type-id provided here can be used to pull out the input value for an
+          instance of this hook for testing-purposes. *)
+
+      val type_id : S.Input.t Type_equal.Id.t
+    end
+  end
+
+  val unsafe_create_js_of_ocaml
     :  combine_inputs:('input -> ('input -> 'input))
     -> init:('input -> Dom_html.element Js.t -> 'input * unit * 'state)
     -> extra:'input * 'input Type_equal.Id.t
@@ -96,6 +109,19 @@ module type Hooks = sig
           -> Dom_html.element Js.t
           -> 'input * unit * 'state)
     -> destroy:('input * unit * 'state -> Dom_html.element Js.t -> unit)
+    -> id:('input * unit * 'state) Type_equal.Id.t
+    -> t
+
+  val unsafe_create
+    :  combine_inputs:('input -> ('input -> 'input))
+    -> init:('input -> Browser_types.html_element Js.t -> 'input * unit * 'state)
+    -> extra:'input * 'input Type_equal.Id.t
+    -> update:
+         ('input
+          -> 'input * unit * 'state
+          -> Browser_types.html_element Js.t
+          -> 'input * unit * 'state)
+    -> destroy:('input * unit * 'state -> Browser_types.html_element Js.t -> unit)
     -> id:('input * unit * 'state) Type_equal.Id.t
     -> t
 

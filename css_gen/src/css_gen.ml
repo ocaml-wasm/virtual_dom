@@ -6,7 +6,7 @@ module Stable = struct
         https://www.w3.org/TR/CSS21/syndata.html#rule-sets. *)
     type t = (string * string) list
     [@@deriving
-      sexp, compare ~localize, equal ~localize, bin_io, stable_witness, sexp_grammar]
+      sexp, compare ~localize, equal ~localize, hash, bin_io, stable_witness, sexp_grammar]
   end
 end
 
@@ -30,10 +30,12 @@ let global_to_string_css (t : 'a css_global_values) ~(to_string_css : 'a -> stri
 ;;
 
 module Private = struct
-  let float_to_string_with_fixed = ref (fun digits f -> sprintf "%.*f" digits f)
+  let storage = Atomic.make (fun digits f -> sprintf "%.*f" digits f)
+  let set_float_to_string_with_fixed f = Atomic.set storage f
+  let float_to_string_with_fixed digits f = (Atomic.get storage) digits f
 end
 
-let f2s digits f = !Private.float_to_string_with_fixed digits f
+let f2s = Private.float_to_string_with_fixed
 
 module Color = struct
   module T = struct
@@ -105,7 +107,10 @@ module Color = struct
   include T
   include Sexpable.To_stringable (T)
 
-  let clamp_percent = Percent.clamp_exn ~min:Percent.zero ~max:Percent.one_hundred_percent
+  let clamp_percent percent =
+    Percent.clamp_exn percent ~min:Percent.zero ~max:Percent.one_hundred_percent
+  ;;
+
   let alpha_to_string a = f2s 2 (Percent.to_mult a)
   let percent_to_string percent = f2s 0 (Percent.to_percentage percent)
   let angle_to_string angle = f2s 2 angle
@@ -335,21 +340,22 @@ let of_string_css_exn s = Css_parser.parse_declaration_list s |> Or_error.ok_exn
 let create_raw ~field ~value = [ field, value ]
 
 module Expert = struct
-  let should_validate = ref false
+  let should_validate = Atomic.make false
 end
 
 let create ~field ~value =
-  if !Expert.should_validate then Css_parser.validate_value value |> Or_error.ok_exn;
+  if Atomic.get Expert.should_validate
+  then Css_parser.validate_value value |> Or_error.ok_exn;
   create_raw ~field ~value
 ;;
 
-let empty = []
+let empty : t = []
 let is_empty = List.is_empty
 let create_placement name length = create ~field:name ~value:(Length.to_string_css length)
-let left = create_placement "left"
-let top = create_placement "top"
-let bottom = create_placement "bottom"
-let right = create_placement "right"
+let left length = create_placement "left" length
+let top length = create_placement "top" length
+let bottom length = create_placement "bottom" length
+let right length = create_placement "right" length
 
 let position ?top:tp ?bottom:bt ?left:lt ?right:rt pos =
   let pos =
@@ -447,9 +453,9 @@ let make_overflow field v =
   create_raw ~field ~value:(to_string_css v)
 ;;
 
-let overflow = make_overflow "overflow"
-let overflow_x = make_overflow "overflow-x"
-let overflow_y = make_overflow "overflow-y"
+let overflow v = make_overflow "overflow" v
+let overflow_x v = make_overflow "overflow-x" v
+let overflow_y v = make_overflow "overflow-y" v
 let z_index i = create_raw ~field:"z-index" ~value:(Int.to_string i)
 let opacity i = create_raw ~field:"opacity" ~value:(f2s 6 i)
 
@@ -519,7 +525,7 @@ type font_variant =
   | font_variant css_global_values
   ]
 
-let font_size = create_length_field "font-size"
+let font_size l = create_length_field "font-size" l
 let font_family l = create_raw ~field:"font-family" ~value:(String.concat l ~sep:",")
 
 let font_style s =
@@ -690,17 +696,17 @@ let float f =
   create_raw ~field:"float" ~value:(to_string_css f)
 ;;
 
-let line_height = create_length_field "line-height"
-let width = create_length_field "width"
-let min_width = create_length_field "min-width"
-let max_width = create_length_field "max-width"
-let height = create_length_field "height"
-let min_height = create_length_field "min-height"
-let max_height = create_length_field "max-height"
-let padding_top = create_length_field "padding-top"
-let padding_bottom = create_length_field "padding-bottom"
-let padding_left = create_length_field "padding-left"
-let padding_right = create_length_field "padding-right"
+let line_height l = create_length_field "line-height" l
+let width l = create_length_field "width" l
+let min_width l = create_length_field "min-width" l
+let max_width l = create_length_field "max-width" l
+let height l = create_length_field "height" l
+let min_height l = create_length_field "min-height" l
+let max_height l = create_length_field "max-height" l
+let padding_top l = create_length_field "padding-top" l
+let padding_bottom l = create_length_field "padding-bottom" l
+let padding_left l = create_length_field "padding-left" l
+let padding_right l = create_length_field "padding-right" l
 
 let padding ?top ?bottom ?left ?right () =
   let m = Option.map in
@@ -714,10 +720,10 @@ let padding ?top ?bottom ?left ?right () =
 ;;
 
 let uniform_padding l = padding ~top:l ~bottom:l ~left:l ~right:l ()
-let margin_top = create_length_field "margin-top"
-let margin_bottom = create_length_field "margin-bottom"
-let margin_left = create_length_field "margin-left"
-let margin_right = create_length_field "margin-right"
+let margin_top l = create_length_field "margin-top" l
+let margin_bottom l = create_length_field "margin-bottom" l
+let margin_left l = create_length_field "margin-left" l
+let margin_right l = create_length_field "margin-right" l
 
 let margin ?top ?bottom ?left ?right () =
   let m = Option.map in
@@ -731,8 +737,8 @@ let margin ?top ?bottom ?left ?right () =
 ;;
 
 let uniform_margin l = margin ~top:l ~bottom:l ~left:l ~right:l ()
-let row_gap = create_length_field "row-gap"
-let column_gap = create_length_field "column-gap"
+let row_gap l = create_length_field "row-gap" l
+let column_gap l = create_length_field "column-gap" l
 
 type border_style =
   [ `None
@@ -830,7 +836,7 @@ let border_collapse v =
   create_raw ~field:"border-collapse" ~value:(to_string_css v)
 ;;
 
-let border_spacing = create_length_field "border-spacing"
+let border_spacing l = create_length_field "border-spacing" l
 let border_radius l = create ~field:"border-radius" ~value:(Length.to_string_css l)
 
 type text_decoration_line =

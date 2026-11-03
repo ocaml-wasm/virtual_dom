@@ -25,7 +25,7 @@ module Hook = struct
   end
 
   include T
-  include Vdom.Attr.Hooks.Make (T)
+  include Vdom.Attr.Hooks.Make_js_of_ocaml (T)
 end
 
 let hook ~f = Vdom.Attr.create_hook "print_on_init_and_mount" (Hook.create f)
@@ -56,7 +56,7 @@ module%test [@name "patch + diff"] _ = struct
     in
     print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
     [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 0) |}];
-    Vdom.Node.Patch.apply patch Dom_html.document##.body |> Fn.ignore;
+    Vdom.Node.Patch.apply_js_of_ocaml patch Dom_html.document##.body |> Fn.ignore;
     [%expect
       {|
       init
@@ -76,7 +76,7 @@ module%test [@name "patch + diff"] _ = struct
       in
       print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
       [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 0) |}];
-      Vdom.Node.Patch.apply patch Dom_html.document##.body |> Fn.ignore);
+      Vdom.Node.Patch.apply_js_of_ocaml patch Dom_html.document##.body |> Fn.ignore);
     [%expect
       {|
       init
@@ -97,7 +97,7 @@ module%test [@name "patch + diff"] _ = struct
       print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
       [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 0) |}];
       let fake_root = Dom_html.document##createElement (Js.string "div") in
-      Vdom.Node.Patch.apply patch fake_root |> Fn.ignore);
+      Vdom.Node.Patch.apply_js_of_ocaml patch fake_root |> Fn.ignore);
     [%expect
       {|
       init
@@ -125,7 +125,7 @@ module%test [@name "patch + diff"] _ = struct
                         ~current:(Vdom.Node.div ~attrs:[ print_hook "Inner Hook" ] [])
                     in
                     print_endline "start inner patch";
-                    Fn.ignore (Vdom.Node.Patch.apply patch portalled);
+                    Fn.ignore (Vdom.Node.Patch.apply_js_of_ocaml patch portalled);
                     print_endline "end inner patch")
                 ]
               []
@@ -139,7 +139,8 @@ module%test [@name "patch + diff"] _ = struct
       in
       print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
       [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 0) |}];
-      Vdom.Node.Patch.apply patch Js_of_ocaml.Dom_html.document##.body |> Fn.ignore);
+      Vdom.Node.Patch.apply_js_of_ocaml patch Js_of_ocaml.Dom_html.document##.body
+      |> Fn.ignore);
     (* If tasks trigger other tasks, we run them in BFS order. *)
     [%expect
       {|
@@ -166,7 +167,7 @@ module%test [@name "Vdom.Node.to_dom"] _ = struct
 
   let%expect_test "on_mount callbacks won't run if outside of [with_on_mount_at_end]" =
     let node = Vdom.Node.div ~attrs:[ print_hook "hi!" ] [] in
-    let dom_node = Vdom.Node.to_dom node in
+    let dom_node = Vdom.Node.to_dom_js_of_ocaml node in
     [%expect
       {|
       init
@@ -183,7 +184,7 @@ module%test [@name "Vdom.Node.to_dom"] _ = struct
   let%expect_test "on_mount callbacks run via [with_on_mount_at_end]" =
     Vdom.Node.For_changing_dom.with_on_mount_at_end (fun () ->
       let node = Vdom.Node.div ~attrs:[ print_hook "hi!" ] [] in
-      let dom_node = Vdom.Node.to_dom node in
+      let dom_node = Vdom.Node.to_dom_js_of_ocaml node in
       [%expect {| init |}];
       print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
       [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 1) |}];
@@ -198,7 +199,7 @@ module%test [@name "Vdom.Node.to_dom"] _ = struct
     =
     Vdom.Node.For_changing_dom.with_on_mount_at_end (fun () ->
       let node = Vdom.Node.div ~attrs:[ print_hook "hi!" ] [] in
-      Vdom.Node.to_dom node |> Fn.ignore;
+      Vdom.Node.to_dom_js_of_ocaml node |> Fn.ignore;
       [%expect {| init |}];
       print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
       [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 1) |}]);
@@ -228,7 +229,7 @@ module%test [@name "Bonsai event loop"] _ = struct
           ~current:(Vdom.Node.div ~attrs:[ print_hook "Inner Hook" ] [])
       in
       print_endline "start inner patch";
-      Fn.ignore (Vdom.Node.Patch.apply patch portalled);
+      Fn.ignore (Vdom.Node.Patch.apply_js_of_ocaml patch portalled);
       print_endline "end inner patch")
   ;;
 
@@ -282,7 +283,9 @@ module%test [@name "Bonsai event loop"] _ = struct
         let%arr subview and toggle_show in
         {%html|
           <div>
-            <button on_click=%{fun _ ->toggle_show} id="toggle">Toggle</button>
+            <button on_click_js_of_ocaml=%{fun _ -> toggle_show} id="toggle">
+              Toggle
+            </button>
             %{subview}
           </div>
         |})
@@ -321,15 +324,15 @@ module%test [@name "Bonsai event loop"] _ = struct
   ;;
 
   let widget =
-    Vdom.Node.widget
+    Vdom.Node.widget_js_of_ocaml
       ~id:(Type_equal.Id.create ~name:"runs_to_dom" (const [%sexp "runs_to_dom"]))
       ~init:(fun () ->
         Vdom.Node.span ~attrs:[ print_hook "on_mount: won't actually get mounted" ] []
-        |> Vdom.Node.to_dom
+        |> Vdom.Node.to_dom_js_of_ocaml
         |> Fn.ignore;
         let main =
           Vdom.Node.div ~attrs:[ print_hook "on_mount: actual widget" ] []
-          |> Vdom.Node.to_dom
+          |> Vdom.Node.to_dom_js_of_ocaml
         in
         (), main)
       ()
@@ -367,7 +370,9 @@ module%test [@name "Bonsai event loop"] _ = struct
         let%arr subview and toggle_show in
         {%html|
           <div>
-            <button on_click=%{fun _ ->toggle_show} id="toggle">Toggle</button>
+            <button on_click_js_of_ocaml=%{fun _ -> toggle_show} id="toggle">
+              Toggle
+            </button>
             %{subview}
           </div>
         |})
@@ -418,7 +423,7 @@ module%test [@name "destroy"] _ = struct
       in
       let add_patch = Vdom.Node.Patch.create ~previous:(Vdom.Node.div []) ~current:vdom in
       print_endline "start inner patch: add";
-      Fn.ignore (Vdom.Node.Patch.apply add_patch portalled);
+      Fn.ignore (Vdom.Node.Patch.apply_js_of_ocaml add_patch portalled);
       print_endline "end inner patch: add";
       let remove_patch =
         Vdom.Node.Patch.create
@@ -426,7 +431,7 @@ module%test [@name "destroy"] _ = struct
           ~current:(Vdom.Node.none_deprecated [@alert "-deprecated"])
       in
       print_endline "start inner patch: remove";
-      Fn.ignore (Vdom.Node.Patch.apply remove_patch portalled);
+      Fn.ignore (Vdom.Node.Patch.apply_js_of_ocaml remove_patch portalled);
       print_endline "end inner patch: remove")
   ;;
 
@@ -440,7 +445,7 @@ module%test [@name "destroy"] _ = struct
         let node =
           Vdom.Node.div ~attrs:[ hook_that_creates_and_immediately_destroys ] []
         in
-        let dom_node = Vdom.Node.to_dom node in
+        let dom_node = Vdom.Node.to_dom_js_of_ocaml node in
         [%expect {| init |}];
         print_s [%message (For_testing.num_queued_on_mount_tasks () : int)];
         [%expect {| ("For_testing.num_queued_on_mount_tasks ()" 1) |}];
@@ -523,7 +528,7 @@ module%test [@name "via requestAnimationFrame"] _ = struct
     end
 
     include T
-    include Vdom.Attr.Hooks.Make (T)
+    include Vdom.Attr.Hooks.Make_js_of_ocaml (T)
   end
 
   let hook = Vdom.Attr.create_hook "print_on_init_and_mount" (Hook.create ())

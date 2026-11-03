@@ -93,13 +93,13 @@ module Opinionated : sig
       You shouldn't unconditionally serve the homepage and rely on the client javascript
       to filter out bad uris, because it means you'll serve up junk for favicon.ico and
       robots.txt etc. *)
-  module type Uri_routing = sig
+  module type%template [@mode m = (local, global)] Uri_routing = sig
     (** [Uri_routing.t] is typically a variant type describing which page the user has
         browsed to.
 
         It's up to you whether or not you include a constructor for your static files, or
         have your server serve them up before it considers [Uri_routing.parse]. *)
-    type t [@@deriving equal, sexp_of]
+    type t [@@deriving equal [@mode.explicit m]]
 
     (** [parse] should probably inspect only the [path] and maybe the [query]. *)
     val parse : Uri.t -> (t, [ `Not_found ]) Result.t
@@ -114,7 +114,7 @@ module Opinionated : sig
     val to_path_and_query : t -> Uri.t
   end
 
-  module type History_state = sig
+  module type%template [@mode m = (local, global)] History_state = sig
     type uri_routing
 
     (** [History_state.t] is the thing that is inserted into the html5-history state
@@ -135,7 +135,7 @@ module Opinionated : sig
         very reasonable, and should match your intuition of what is preserved when
         pressing back/forwards, and what is contained in the uri/happens if you load that
         uri from scratch. *)
-    type t [@@deriving bin_io, equal, sexp_of]
+    type t [@@deriving bin_io, (equal [@mode.explicit m]), sexp_of]
 
     val to_uri_routing : t -> uri_routing
     val of_uri_routing : uri_routing -> t

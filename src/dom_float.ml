@@ -6,6 +6,11 @@ let to_js_string_precision digits value = (Js.number_of_float value)##toPrecisio
 let to_js_string_exponential value = (Js.number_of_float value)##toExponential
 let to_string value = to_js_string value |> Js.to_string
 let to_string_fixed digits value = to_js_string_fixed digits value |> Js.to_string
+
+(* SAFETY: [to_string_fixed] only calls Js_of_ocaml externals and closes over no mutable
+   state; it is not inferred portable solely because [Js_of_ocaml.Js] has no portability
+   annotations yet. *)
+let to_string_fixed = Core.Obj.magic_portable to_string_fixed
 let to_string_precision digits value = to_js_string_precision digits value |> Js.to_string
 let to_string_exponential value = to_js_string_exponential value |> Js.to_string
 

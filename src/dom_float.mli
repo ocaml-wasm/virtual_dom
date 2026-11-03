@@ -18,6 +18,6 @@ val to_js_string_precision : int -> float -> Js.js_string Js.t
 val to_js_string_exponential : float -> Js.js_string Js.t
 
 val to_string : float -> string
-val to_string_fixed : int -> float -> string
+val to_string_fixed : int -> float -> string @@ portable
 val to_string_precision : int -> float -> string
 val to_string_exponential : float -> string

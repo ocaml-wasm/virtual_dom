@@ -20,8 +20,29 @@ module Condition : sig
   val and_ : t -> t -> t
   val or_ : t -> t -> t
 
-  (** [has_input_target] returns true if the event target is an input *)
+  (** [has_interactive_target] returns true if the event target is an interactive element,
+      or is nested inside one. This includes native form controls and links, editable and
+      tab-focusable elements, and elements with common interactive ARIA roles. *)
+  val has_interactive_target : t
+
+  (** [has_input_target] returns true if the event target is an [input] or [textarea]
+      element. *)
   val has_input_target : t
+
+  (** [has_contenteditable_target] returns true if the event target is a [contenteditable]
+      element (other than [contenteditable="false"]) or a descendant of one, including
+      descendants with [contenteditable="false"]. *)
+  val has_contenteditable_target : t
+
+  (** [has_input_or_contenteditable_target] is a heuristic for whether the event target is
+      within an editable field. It returns true if either [has_input_target] or
+      [has_contenteditable_target] return true.
+
+      This is useful for suppressing keyboard shortcuts that would otherwise bubble up.
+      It's not always a reliable test of editability; disabled and read-only inputs still
+      match, for example, and custom editable widgets may not. You should read the
+      implementation if you care about how specific elements and properties are handled. *)
+  val has_input_or_contenteditable_target : t
 
   (** [has_text_input_target] returns true if the event target is a text input or textarea
       element *)

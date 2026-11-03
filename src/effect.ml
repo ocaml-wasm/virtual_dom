@@ -70,7 +70,9 @@ let () =
   Hashtbl.add_exn
     Expert.handlers
     ~key:Stdlib.Obj.Extension_constructor.(id (of_val Stop_propagation))
-    ~data:(fun _ -> Option.iter !current_dom_event ~f:Dom_html.stopPropagation)
+    ~data:(fun _ ->
+      Option.iter !current_dom_event ~f:(fun (event : #Browser_types.event Js.t) ->
+        event##stopPropagation))
 ;;
 
 let () =
@@ -79,7 +81,9 @@ let () =
     ~key:
       Stdlib.Obj.Extension_constructor.(
         id (of_val (Prevent_default [@alert "-deprecated"])))
-    ~data:(fun _ -> Option.iter !current_dom_event ~f:Dom.preventDefault)
+    ~data:(fun _ ->
+      Option.iter !current_dom_event ~f:(fun (event : #Browser_types.event Js.t) ->
+        event##preventDefault))
 ;;
 
 let () =
@@ -87,16 +91,20 @@ let () =
     Expert.handlers
     ~key:(Stdlib.Obj.Extension_constructor.id [%extension_constructor Open])
     ~data:(fun hidden ->
-      match hidden with
-      | T { value = Open { url; target }; callback; on_exn = _ } ->
-        let (_ : Dom_html.window Js.t Js.Opt.t) =
-          Dom_html.window##open_
-            (Js.string url)
-            (Js.string (Open_url_target.to_target target))
-            Js.Opt.empty
-        in
-        callback ()
-      | _ -> failwith "Unrecognized variant")
+      let window = Browser_expert.Global.window_exn () in
+      let url, target, callback =
+        match hidden with
+        | T { value = Open { url; target }; callback; on_exn = _ } ->
+          url, target, fun () -> callback ()
+        | _ -> failwith "Unrecognized variant"
+      in
+      let (_ : Browser_types.window Js.t Js.Opt.t) =
+        window##open_
+          ~url:(Js.string url |> Js.Optdef.return)
+          ~target:(Js.string (Open_url_target.to_target target) |> Js.Optdef.return)
+          ~features:Js.Optdef.empty
+      in
+      callback ())
 ;;
 
 module Expert = struct
@@ -107,8 +115,13 @@ module Expert = struct
 
   let handle ~on_exn ?on_further_exns dom_event event =
     let old = !current_dom_event in
-    current_dom_event := Some (dom_event :> Dom_html.element Dom.event Js.t);
+    current_dom_event := Some (dom_event :> Browser_types.event Js.t);
     Expert.handle ~on_exn ?on_further_exns event;
     current_dom_event := old
+  ;;
+
+  let handle_js_of_ocaml ~on_exn ?on_further_exns dom_event event =
+    let dom_event = Browser_extra.Coercion.of_jsoo_event dom_event in
+    handle ~on_exn ?on_further_exns dom_event event
   ;;
 end
